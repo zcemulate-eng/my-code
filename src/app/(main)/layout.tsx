@@ -22,7 +22,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     const navItems = [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
         { text: 'Companies', icon: <BusinessIcon />, path: '/companies' }, // 原来是 /dashboard/companies
-        { text: 'User', icon: <PersonIcon />, path: '/user' },            // 原来是 /dashboard/user
+        { text: 'User', icon: <PersonIcon />, path: '/users' },            // 原来是 /dashboard/user
     ];
 
     return (

@@ -11,7 +11,28 @@ datasource db {
 
 model User {
   id        Int      @id @default(autoincrement())
+  name      String?  // 新增：姓名
   email     String   @unique
   password  String
+  role      String   @default("User")    // 新增：角色 (例如 Admin, Manager, User)
+  status    String   @default("Active")  // 新增：状态 (例如 Active, Disabled)
   createdAt DateTime @default(now())
+}
+
+model Company {
+  // 字段定义：左边是驼峰(代码用)，右边是映射(数据库用)
+  id            Int      @id @default(autoincrement())
+  
+  companyCode   String   @unique @map("company_code") // 对应 SQL: company_code
+  name          String   @map("company_name")         // 对应 SQL: company_name
+  level         Int      // 对应 SQL: level (INT)
+  country       String?  // 对应 SQL: country (可能为空)
+  city          String?  // 对应 SQL: city
+  foundedYear   Int?     @map("founded_year")         // 对应 SQL: founded_year
+  annualRevenue BigInt?  @map("annual_revenue")       // 对应 SQL: annual_revenue (BIGINT)
+  employees     Int?     // 对应 SQL: employees
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // 表名映射：代码里叫 Company (单数)，数据库里叫 companies (复数)
+  @@map("companies")
 }
