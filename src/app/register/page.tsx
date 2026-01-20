@@ -10,6 +10,7 @@ export default function RegisterPage() {
 	const [serverError, setServerError] = useState('');
 	const [success, setSuccess] = useState(false);
 
+    // 检查注册表单输入逻辑
 	const getFieldError = (name: string, value: string) => {
 		if (name === 'email') {
 			if (!value) {
@@ -38,6 +39,7 @@ export default function RegisterPage() {
 		return "";
 	};
 
+    // 鼠标失焦后立即检查
 	const handleBlur = (field: 'email' | 'password') => {
 		const error = getFieldError(field, formData[field]);
 		setErrors(prev => ({ ...prev, [field]: error }));

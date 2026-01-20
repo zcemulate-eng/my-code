@@ -1,5 +1,7 @@
 'use server';
 import { prisma } from '@/lib/prisma';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 
 export async function registerUser(formData: any) {
 	try {
@@ -28,4 +30,19 @@ export async function loginUser(formData: any) {
 	} catch (e) {
 		return { success: false, message: "服务器错误" };
 	}
+}
+
+/**
+ * 注销 / 退出登录
+ */
+export async function logout() {
+  // 1. 删除用于维持会话的 Cookie
+  // 注意：这里假设你的 Cookie 名字叫 'userId' 或者 'session'
+  // 如果你不确定，我们可以把常见的都删了，或者你可以告诉我你 Login 时存的 cookie 名字
+  const cookieStore = await cookies();
+  cookieStore.delete('userId'); 
+  cookieStore.delete('session');
+  
+  // 2. 重定向回登录页
+  redirect('/login');
 }

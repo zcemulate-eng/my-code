@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import { Box, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, IconButton, Divider, Typography, useTheme } from '@mui/material';
 import { 
-    ChevronLeft as ChevronLeftIcon, Menu as MenuIcon, 
+    Menu as MenuIcon, 
     Dashboard as DashboardIcon, Business as BusinessIcon, Person as PersonIcon 
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import TopBar from '@/components/Topbar'; // <--- 1. 引入 TopBar 组件
 
 const DRAWER_WIDTH = 280;
 
@@ -18,15 +19,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
     const toggleDrawer = () => setOpen(!open);
 
-    // 【关键改动】：更新导航路径，现在它们是同级的
     const navItems = [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-        { text: 'Companies', icon: <BusinessIcon />, path: '/companies' }, // 原来是 /dashboard/companies
-        { text: 'User', icon: <PersonIcon />, path: '/users' },            // 原来是 /dashboard/user
+        { text: 'Companies', icon: <BusinessIcon />, path: '/companies' },
+        { text: 'User', icon: <PersonIcon />, path: '/users' },
     ];
 
     return (
         <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: '#fcfaf5' }}>
+            {/* --- 左侧：侧边栏 (Sidebar) --- */}
             <Drawer
                 variant="permanent"
                 open={open}
@@ -45,7 +46,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                     },
                 }}
             >
-                {/* 侧边栏头部 */}
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: open ? 'space-between' : 'center', px: 2, py: 3 }}>
                     {open && <Typography variant="h6" sx={{ fontWeight: 800, color: '#5d4037' }}>MY SYSTEM</Typography>}
                     <IconButton onClick={toggleDrawer}><MenuIcon /></IconButton>
@@ -80,9 +80,27 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 </List>
             </Drawer>
 
-            {/* 内容区域：所有 (main) 下的页面都会渲染在 children 里 */}
-            <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, md: 5 }, width: '100%' }}>
-                {children}
+            {/* --- 右侧：主区域 (包含 TopBar 和 页面内容) --- */}
+            <Box 
+                component="main" 
+                sx={{ 
+                    flexGrow: 1, 
+                    width: '100%', 
+                    display: 'flex',        // <--- 2. 改为 Flex 布局
+                    flexDirection: 'column' // <--- 3. 垂直排列 (TopBar 在上，内容在下)
+                }}
+            >
+                {/* A. 顶部栏 */}
+                <TopBar />
+
+                {/* B. 页面实际内容 */}
+                <Box sx={{ 
+                    flexGrow: 1, 
+                    p: { xs: 2, md: 5 }, // <--- 4. Padding 移到这里，防止 TopBar 被挤压
+                    overflow: 'auto'     // 内容过多时出现滚动条
+                }}>
+                    {children}
+                </Box>
             </Box>
         </Box>
     );
