@@ -37,8 +37,6 @@ export async function loginUser(formData: any) {
  */
 export async function logout() {
   // 1. 删除用于维持会话的 Cookie
-  // 注意：这里假设你的 Cookie 名字叫 'userId' 或者 'session'
-  // 如果你不确定，我们可以把常见的都删了，或者你可以告诉我你 Login 时存的 cookie 名字
   const cookieStore = await cookies();
   cookieStore.delete('userId'); 
   cookieStore.delete('session');

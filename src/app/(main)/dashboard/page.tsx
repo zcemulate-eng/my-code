@@ -1,19 +1,18 @@
-// src/app/(main)/dashboard/page.tsx
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
 import {
     Typography,
-    Grid,
-    Card,
-    CardContent,
     Box,
     Stack,
     Skeleton,
     Alert,
     Tooltip as MuiTooltip,
     Paper,
-    Zoom
+    Zoom,
+    Card,
+    CardContent,
+    Grid 
 } from '@mui/material';
 import BusinessIcon from '@mui/icons-material/Business';
 import CurrencyYuanIcon from '@mui/icons-material/CurrencyYuan';
@@ -37,6 +36,9 @@ import {
 import { Doughnut, Line } from 'react-chartjs-2';
 
 import { getDashboardStats, getCompanyLevelStats, getCompanyGrowthStats } from '@/app/actions/company';
+
+// 引入动态条形图组件
+import CompanyBarChart from '@/components/CompanyBarChart';
 
 // 注册 Chart.js 组件
 ChartJS.register(
@@ -117,15 +119,7 @@ const DetailedStatsTooltip = ({ levelStats, total }: { levelStats: { level: numb
     const colors = ['#2e7d32', '#8d6e63', '#d7ccc8', '#bcaaa4'];
     return (
         <Box sx={{ p: 1 }}>
-            <Typography
-                variant="subtitle2"
-                sx={{
-                    fontWeight: 800,
-                    color: '#fff',
-                    mb: 1.5,
-                    borderBottom: '1px solid rgba(255,255,255,0.2)',
-                    pb: 0.5
-                }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#fff', mb: 1.5, borderBottom: '1px solid rgba(255,255,255,0.2)', pb: 0.5 }}>
                 层级详情 (Level Details)
             </Typography>
             <Stack spacing={1}>
@@ -136,17 +130,11 @@ const DetailedStatsTooltip = ({ levelStats, total }: { levelStats: { level: numb
                         <Stack key={item.level} direction="row" justifyContent="space-between" alignItems="center" spacing={4} sx={{ minWidth: '180px' }}>
                             <Stack direction="row" spacing={1} alignItems="center">
                                 <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color }} />
-                                <Typography variant="body2" sx={{ color: '#fff', fontWeight: 500 }}>
-                                    Level {item.level}
-                                </Typography>
+                                <Typography variant="body2" sx={{ color: '#fff', fontWeight: 500 }}>Level {item.level}</Typography>
                             </Stack>
                             <Stack direction="row" spacing={2}>
-                                <Typography variant="body2" sx={{ color: '#fff', fontWeight: 700 }}>
-                                    {item.count}
-                                </Typography>
-                                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', width: '40px', textAlign: 'right' }}>
-                                    {percentage}
-                                </Typography>
+                                <Typography variant="body2" sx={{ color: '#fff', fontWeight: 700 }}>{item.count}</Typography>
+                                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', width: '40px', textAlign: 'right' }}>{percentage}</Typography>
                             </Stack>
                         </Stack>
                     )
@@ -182,8 +170,8 @@ export default function DashboardPage() {
                     setLevelStats(levelStatsRes.data);
                 }
                 if (growthStatsRes.success && growthStatsRes.data) {
-                    const validGrowthData = (growthStatsRes.data as { year: number; count: number }[])
-                        .filter(item => item.year > 1950);
+                    // @ts-ignore
+                    const validGrowthData = growthStatsRes.data.filter((item: any) => item.year > 1950);
                     setGrowthStats(validGrowthData);
                 }
             } catch (err) {
@@ -216,7 +204,6 @@ export default function DashboardPage() {
             legend: { display: false },
             tooltip: {
                 enabled: true,
-                // 修改点：改为 'top'，让箭头指向上方，Tooltip 本身就会出现在鼠标下方
                 yAlign: 'top' as const,
                 backgroundColor: 'rgba(255, 255, 255, 0.95)',
                 titleColor: '#5d4037',
@@ -336,16 +323,27 @@ export default function DashboardPage() {
 
             {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
-            {/* 数据卡片 */}
+            {/* Grid v2 修正点：
+               1. 移除了 item 属性。
+               2. 将 xs={12} sm={6} 等替换为 size={{ xs: 12, sm: 6, ... }}。
+            */}
             <Grid container spacing={3} sx={{ mb: 4 }}>
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}><StatCard title="合作企业" value={formatLargeNumber(stats.totalCompanies)} icon={<BusinessIcon sx={{ fontSize: 28 }} />} color="#5d4037" loading={loading} /></Grid>
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}><StatCard title="总营收" value={formatLargeNumber(stats.totalRevenue, true)} icon={<CurrencyYuanIcon sx={{ fontSize: 28 }} />} color="#2e7d32" loading={loading} /></Grid>
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}><StatCard title="覆盖国家" value={stats.uniqueCountries} icon={<PublicIcon sx={{ fontSize: 28 }} />} color="#0288d1" loading={loading} /></Grid>
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}><StatCard title="员工规模" value={formatLargeNumber(stats.totalEmployees)} icon={<GroupIcon sx={{ fontSize: 28 }} />} color="#e64a19" loading={loading} /></Grid>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                    <StatCard title="合作企业" value={formatLargeNumber(stats.totalCompanies)} icon={<BusinessIcon sx={{ fontSize: 28 }} />} color="#5d4037" loading={loading} />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                    <StatCard title="总营收" value={formatLargeNumber(stats.totalRevenue, true)} icon={<CurrencyYuanIcon sx={{ fontSize: 28 }} />} color="#2e7d32" loading={loading} />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                    <StatCard title="覆盖国家" value={stats.uniqueCountries} icon={<PublicIcon sx={{ fontSize: 28 }} />} color="#0288d1" loading={loading} />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                    <StatCard title="员工规模" value={formatLargeNumber(stats.totalEmployees)} icon={<GroupIcon sx={{ fontSize: 28 }} />} color="#e64a19" loading={loading} />
+                </Grid>
             </Grid>
 
             <Grid container spacing={3}>
-                {/* 1. 圆环图 (Doughnut) */}
+                {/* 圆环图 */}
                 <Grid size={{ xs: 12, md: 4 }}>
                     <Paper elevation={0} sx={{
                         p: 4,
@@ -382,14 +380,7 @@ export default function DashboardPage() {
                                         placement="top"
                                         TransitionComponent={Zoom}
                                         slotProps={{
-                                            tooltip: {
-                                                sx: {
-                                                    bgcolor: 'rgba(62, 39, 35, 0.95)',
-                                                    borderRadius: '16px',
-                                                    p: 0,
-                                                    maxWidth: 'none'
-                                                }
-                                            },
+                                            tooltip: { sx: { bgcolor: 'rgba(62, 39, 35, 0.95)', borderRadius: '16px', p: 0, maxWidth: 'none' } },
                                             arrow: { sx: { color: 'rgba(62, 39, 35, 0.95)' } }
                                         }}
                                         disableHoverListener={centerLabel !== 'Total'}
@@ -410,18 +401,8 @@ export default function DashboardPage() {
                                             alignItems: 'center',
                                             borderRadius: '50%'
                                         }}>
-                                            <Typography variant="h3" sx={{
-                                                fontWeight: 900,
-                                                color: centerLabel === 'Total' ? '#4e342e' : '#2e7d32',
-                                                lineHeight: 1,
-                                                mb: 0.5,
-                                                transition: 'color 0.3s ease'
-                                            }}>
-                                                {centerValue}
-                                            </Typography>
-                                            <Typography variant="body1" sx={{ color: '#8d6e63', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>
-                                                {centerLabel}
-                                            </Typography>
+                                            <Typography variant="h3" sx={{ fontWeight: 900, color: centerLabel === 'Total' ? '#4e342e' : '#2e7d32', lineHeight: 1, mb: 0.5, transition: 'color 0.3s ease' }}>{centerValue}</Typography>
+                                            <Typography variant="body1" sx={{ color: '#8d6e63', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>{centerLabel}</Typography>
                                         </Box>
                                     </MuiTooltip>
                                 </>
@@ -430,7 +411,7 @@ export default function DashboardPage() {
                     </Paper>
                 </Grid>
 
-                {/* 2. 折线图 (Line Chart) */}
+                {/* 折线图 */}
                 <Grid size={{ xs: 12, md: 8 }}>
                     <Paper elevation={0} sx={{
                         p: 4,
@@ -448,12 +429,8 @@ export default function DashboardPage() {
                                 <TrendingUpIcon />
                             </Box>
                             <Box>
-                                <Typography variant="h6" sx={{ fontWeight: 800, color: '#4e342e', lineHeight: 1.2 }}>
-                                    供应链公司数量增长趋势
-                                </Typography>
-                                <Typography variant="caption" sx={{ color: '#8d6e63', fontWeight: 500 }}>
-                                    Cumulative Network Growth
-                                </Typography>
+                                <Typography variant="h6" sx={{ fontWeight: 800, color: '#4e342e', lineHeight: 1.2 }}>供应链公司数量增长趋势</Typography>
+                                <Typography variant="caption" sx={{ color: '#8d6e63', fontWeight: 500 }}>Cumulative Network Growth</Typography>
                             </Box>
                         </Stack>
 
@@ -465,6 +442,11 @@ export default function DashboardPage() {
                             )}
                         </Box>
                     </Paper>
+                </Grid>
+
+                {/* 新增：动态条形图组件 */}
+                <Grid size={{ xs: 12 }}>
+                    <CompanyBarChart />
                 </Grid>
             </Grid>
         </Box>

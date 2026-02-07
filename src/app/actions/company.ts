@@ -191,3 +191,116 @@ export async function getCompanyGrowthStats() {
     return { success: false, data: [] };
   }
 }
+
+export type DimensionType = 'level' | 'country' | 'city';
+
+export interface ChartFilterState {
+  levels: number[];
+  countries: string[];
+  cities: string[];
+  foundedYear: { start: string; end: string };
+  annualRevenue: { min: string; max: string };
+  employees: { min: string; max: string };
+}
+
+// 1. 获取 Filter 选项
+export async function getFilterOptions() {
+  try {
+    const [levels, locations] = await Promise.all([
+      // 1. 获取所有 Level
+      prisma.company.groupBy({ by: ['level'], orderBy: { level: 'asc' } }),
+      
+      // 2. 获取所有不重复的 Country + City 组合
+      // 这样我们就能知道哪个 City 属于哪个 Country
+      prisma.company.groupBy({
+        by: ['country', 'city'],
+        where: {
+          country: { not: null },
+          city: { not: null }
+        },
+        orderBy: { country: 'asc' }
+      })
+    ]);
+    
+    // 提取去重后的国家列表
+    const uniqueCountries = Array.from(new Set(locations.map(l => l.country).filter(Boolean))) as string[];
+    
+    // 提取去重后的城市列表 (初始状态显示所有城市)
+    const uniqueCities = Array.from(new Set(locations.map(l => l.city).filter(Boolean))) as string[];
+
+    return {
+      success: true,
+      data: {
+        levels: levels.map(l => l.level),
+        countries: uniqueCountries,
+        cities: uniqueCities,
+        // 新增：返回原始的位置映射数据，供前端做级联筛选
+        rawLocations: locations.map(l => ({ country: l.country as string, city: l.city as string }))
+      }
+    };
+  } catch (error) {
+    console.error("Filter options error:", error);
+    return { success: false, data: { levels: [], countries: [], cities: [], rawLocations: [] } };
+  }
+}
+
+// 2. 获取动态图表数据
+export async function getCompanyChartData(
+  dimension: DimensionType, 
+  filters: ChartFilterState
+) {
+  try {
+    const where: Prisma.CompanyWhereInput = {};
+
+    // --- 构建筛选条件 ---
+    if (filters.levels.length > 0) where.level = { in: filters.levels };
+    if (filters.countries.length > 0) where.country = { in: filters.countries };
+    if (filters.cities.length > 0) where.city = { in: filters.cities };
+
+    // 范围查询 (foundedYear 是必填 Int)
+    if (filters.foundedYear.start || filters.foundedYear.end) {
+      where.foundedYear = {};
+      if (filters.foundedYear.start) where.foundedYear.gte = parseInt(filters.foundedYear.start);
+      if (filters.foundedYear.end) where.foundedYear.lte = parseInt(filters.foundedYear.end);
+    }
+
+    // 范围查询 (employees 是必填 Int)
+    if (filters.employees.min || filters.employees.max) {
+      where.employees = {};
+      if (filters.employees.min) where.employees.gte = parseInt(filters.employees.min);
+      if (filters.employees.max) where.employees.lte = parseInt(filters.employees.max);
+    }
+
+    // 范围查询 (annualRevenue 是 BigInt)
+    if (filters.annualRevenue.min || filters.annualRevenue.max) {
+      where.annualRevenue = {};
+      if (filters.annualRevenue.min) where.annualRevenue.gte = BigInt(filters.annualRevenue.min);
+      if (filters.annualRevenue.max) where.annualRevenue.lte = BigInt(filters.annualRevenue.max);
+    }
+
+    // --- 聚合查询 ---
+    // 强制断言 dimension 类型以通过 TS 检查
+    const groupByField = dimension as 'level' | 'country' | 'city';
+
+    const results = await prisma.company.groupBy({
+      by: [groupByField],
+      _count: { id: true },
+      where: where,
+      orderBy: { _count: { id: 'desc' } },
+      take: 20 // 限制显示前 20 个结果
+    });
+
+    // 过滤掉结果中 key 为 null 的数据 (主要针对 country/city)
+    const validResults = results.filter(item => item[groupByField] !== null);
+
+    return { 
+      success: true, 
+      labels: validResults.map(item => String(item[groupByField])), 
+      data: validResults.map(item => item._count.id) 
+    };
+
+  } catch (error) {
+    console.error("Chart data error:", error);
+    return { success: false, labels: [], data: [] };
+  }
+}
