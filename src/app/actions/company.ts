@@ -20,7 +20,6 @@ export async function getCompanies(filter: CompanyFilter) {
     if (search) {
       where.name = {
         contains: search,
-        // mode: 'insensitive', // 如果用 Postgres 建议加上这行
       };
     }
 
