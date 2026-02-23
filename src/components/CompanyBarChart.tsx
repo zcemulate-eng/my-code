@@ -5,13 +5,16 @@ import {
   Box, Paper, Typography, FormControl, InputLabel, Select, MenuItem,
   OutlinedInput, Chip, TextField, Stack, IconButton, Collapse, CircularProgress,
   useTheme,
-  Grid 
+  Grid,
+  Tabs, // 新增
+  Tab   // 新增
 } from '@mui/material';
 import { 
   FilterList as FilterIcon, 
   ExpandMore as ExpandMoreIcon, 
   ExpandLess as ExpandLessIcon,
-  BarChart as BarChartIcon
+  BarChart as BarChartIcon,
+  BubbleChart as BubbleChartIcon // 新增图标
 } from '@mui/icons-material';
 import { Bar } from 'react-chartjs-2';
 import {
@@ -24,6 +27,9 @@ import {
   type DimensionType 
 } from '@/app/actions/company';
 
+// 引入我们刚才创建的气泡图组件
+import CompanyBubbleChart from './CompanyBubbleChart';
+
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export default function CompanyBarChart() {
@@ -31,6 +37,9 @@ export default function CompanyBarChart() {
   const [loading, setLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false); 
   
+  // --- Tab State ---
+  const [tabValue, setTabValue] = useState(0); // 0: Bar, 1: Bubble
+
   const [chartData, setChartData] = useState<{ labels: string[], data: number[] }>({ labels: [], data: [] });
 
   const [options, setOptions] = useState({
@@ -52,6 +61,7 @@ export default function CompanyBarChart() {
     employees: { min: '', max: '' },
   });
 
+  // 1. 初始化选项
   useEffect(() => {
     const loadOptions = async () => {
       const res = await getFilterOptions();
@@ -67,6 +77,7 @@ export default function CompanyBarChart() {
     loadOptions();
   }, []);
 
+  // 2. 级联筛选逻辑
   useEffect(() => {
     if (filters.countries.length === 0) {
       const allCities = Array.from(new Set(allLocations.map(l => l.city)));
@@ -87,8 +98,10 @@ export default function CompanyBarChart() {
     }
   }, [filters.countries, allLocations]);
 
-
+  // 3. 获取柱状图数据 (仅当在 Tab 0 时或者过滤器变化时触发)
   useEffect(() => {
+    if (tabValue !== 0) return; // 如果当前是 Bubble Chart，不需要请求柱状图数据
+
     const fetchData = async () => {
       setLoading(true);
       const res = await getCompanyChartData(dimension, filters);
@@ -100,9 +113,11 @@ export default function CompanyBarChart() {
 
     const timer = setTimeout(fetchData, 500);
     return () => clearTimeout(timer);
-  }, [dimension, filters]);
+  }, [dimension, filters, tabValue]);
 
+  // --- Handlers ---
   const handleDimensionChange = (e: any) => setDimension(e.target.value);
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => setTabValue(newValue);
 
   const handleMultiSelectChange = (field: 'levels' | 'countries' | 'cities') => (event: any) => {
     const { target: { value } } = event;
@@ -122,6 +137,7 @@ export default function CompanyBarChart() {
     }));
   };
 
+  // --- Styles ---
   const earthColors = {
     primary: '#8d6e63',
     dark: '#5d4037',
@@ -174,44 +190,76 @@ export default function CompanyBarChart() {
         borderWidth: 1,
         borderRadius: 4,
         hoverBackgroundColor: earthColors.dark,
-        // ✨✨✨ 优化点：限制最大宽度 ✨✨✨
-        maxBarThickness: 50,      // 无论有多少数据，柱子最宽 50px
-        barPercentage: 0.6,       // 稍微调窄柱子占比
-        categoryPercentage: 0.8,  // 调整类别间距
+        maxBarThickness: 50,
+        barPercentage: 0.6,
+        categoryPercentage: 0.8,
       },
     ],
   };
 
   return (
     <Paper sx={{ p: 3, borderRadius: 3, boxShadow: 3, border: '1px solid rgba(0,0,0,0.02)' }}>
+      {/* 顶部控制栏 */}
       <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems="center" spacing={2} mb={3}>
-        <Stack direction="row" alignItems="center" spacing={1.5}>
-            <Box sx={{ p: 1, borderRadius: '10px', bgcolor: earthColors.light, color: earthColors.dark }}>
-                <BarChartIcon />
-            </Box>
-            <Box>
-                <Typography variant="h6" fontWeight="800" color={earthColors.text} sx={{ lineHeight: 1.2 }}>
-                    动态统计分析
-                </Typography>
-                <Typography variant="caption" color={earthColors.primary} fontWeight="500">
-                    Dynamic Analytics
-                </Typography>
-            </Box>
+        
+        {/* 左侧：标题 + Tabs */}
+        <Stack direction="row" alignItems="center" spacing={3}>
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ p: 1, borderRadius: '10px', bgcolor: earthColors.light, color: earthColors.dark }}>
+                  {/* 根据 Tab 动态显示图标 */}
+                  {tabValue === 0 ? <BarChartIcon /> : <BubbleChartIcon />}
+              </Box>
+              <Box>
+                  <Typography variant="h6" fontWeight="800" color={earthColors.text} sx={{ lineHeight: 1.2 }}>
+                      动态统计分析
+                  </Typography>
+                  <Typography variant="caption" color={earthColors.primary} fontWeight="500">
+                      Dynamic Analytics
+                  </Typography>
+              </Box>
+          </Stack>
+
+          {/* 新增：Tab 切换 */}
+          <Tabs 
+            value={tabValue} 
+            onChange={handleTabChange}
+            textColor="inherit"
+            TabIndicatorProps={{ sx: { bgcolor: earthColors.dark } }}
+            sx={{ 
+                minHeight: 'auto',
+                '& .MuiTab-root': { 
+                    minHeight: 'auto', 
+                    py: 1, 
+                    fontWeight: 700,
+                    color: '#9e9e9e',
+                    '&.Mui-selected': { color: earthColors.dark }
+                } 
+            }}
+          >
+            <Tab label="Bar Chart" />
+            <Tab label="Bubble Chart" />
+          </Tabs>
         </Stack>
 
+        {/* 右侧：维度选择 (仅 Bar Chart 显示) + 过滤器开关 */}
         <Stack direction="row" spacing={2} alignItems="center">
-            <Typography variant="body2" fontWeight="bold" color={earthColors.dark}>维度 (X轴):</Typography>
-            <FormControl size="small" sx={{ minWidth: 140 }}>
-                <Select 
-                    value={dimension} 
-                    onChange={handleDimensionChange}
-                    sx={{ color: earthColors.dark, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(141,110,99,0.3)' } }}
-                >
-                    <MenuItem value="level">公司等级</MenuItem>
-                    <MenuItem value="country">国家</MenuItem>
-                    <MenuItem value="city">城市</MenuItem>
-                </Select>
-            </FormControl>
+            {/* 如果是 Bubble Chart (Tab 1)，隐藏维度选择器，因为气泡图是固定层级结构 */}
+            {tabValue === 0 && (
+                <>
+                    <Typography variant="body2" fontWeight="bold" color={earthColors.dark}>维度 (X轴):</Typography>
+                    <FormControl size="small" sx={{ minWidth: 140 }}>
+                        <Select 
+                            value={dimension} 
+                            onChange={handleDimensionChange}
+                            sx={{ color: earthColors.dark, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(141,110,99,0.3)' } }}
+                        >
+                            <MenuItem value="level">公司等级</MenuItem>
+                            <MenuItem value="country">国家</MenuItem>
+                            <MenuItem value="city">城市</MenuItem>
+                        </Select>
+                    </FormControl>
+                </>
+            )}
             
             <IconButton 
                 onClick={() => setShowFilters(!showFilters)} 
@@ -228,6 +276,7 @@ export default function CompanyBarChart() {
         </Stack>
       </Stack>
 
+      {/* 过滤器面板 (两个图表通用) */}
       <Collapse in={showFilters}>
         <Box sx={{ p: 3, mb: 3, bgcolor: '#fafafa', borderRadius: 2, border: '1px dashed rgba(141,110,99,0.2)' }}>
             <Grid container spacing={2}>
@@ -340,22 +389,34 @@ export default function CompanyBarChart() {
         </Box>
       </Collapse>
 
-      <Box sx={{ height: 400, position: 'relative' }}>
-        {loading && (
-            <Box sx={{ 
-                position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
-                bgcolor: 'rgba(255,255,255,0.7)', zIndex: 5, 
-                display: 'flex', alignItems: 'center', justifyContent: 'center' 
-            }}>
-                <CircularProgress sx={{ color: earthColors.primary }} />
+      {/* 图表展示区: 根据 Tab 切换显示 */}
+      <Box sx={{ position: 'relative' }}>
+        
+        {/* Tab 0: Bar Chart */}
+        {tabValue === 0 && (
+            <Box sx={{ height: 400 }}>
+                {loading && (
+                    <Box sx={{ 
+                        position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
+                        bgcolor: 'rgba(255,255,255,0.7)', zIndex: 5, 
+                        display: 'flex', alignItems: 'center', justifyContent: 'center' 
+                    }}>
+                        <CircularProgress sx={{ color: earthColors.primary }} />
+                    </Box>
+                )}
+                {chartData.labels.length > 0 ? (
+                    <Bar options={chartOptions} data={chartDataConfig} />
+                ) : (
+                    <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bdbdbd' }}>
+                        <Typography>暂无匹配数据，请尝试调整过滤器</Typography>
+                    </Box>
+                )}
             </Box>
         )}
-        {chartData.labels.length > 0 ? (
-            <Bar options={chartOptions} data={chartDataConfig} />
-        ) : (
-            <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bdbdbd' }}>
-                <Typography>暂无匹配数据，请尝试调整过滤器</Typography>
-            </Box>
+
+        {/* Tab 1: Bubble Chart */}
+        {tabValue === 1 && (
+            <CompanyBubbleChart filters={filters} />
         )}
       </Box>
     </Paper>
