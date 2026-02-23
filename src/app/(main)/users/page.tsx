@@ -1,107 +1,362 @@
-// src/app/(main)/layout.tsx
+// src/app/(main)/users/page.tsx
 'use client';
-import { useState } from 'react';
-import { Box, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, IconButton, Divider, Typography, useTheme } from '@mui/material';
+
+import React, { useState, useEffect } from 'react';
+import {
+    Box, Typography, Paper, Table, TableBody, TableCell, TableContainer,
+    TableHead, TableRow, Button, IconButton, Chip, Drawer, TextField, MenuItem, 
+    Stack, Snackbar, Alert, TablePagination, InputAdornment, FormControl, 
+    InputLabel, Select, OutlinedInput
+} from '@mui/material';
 import { 
-    Menu as MenuIcon, 
-    Dashboard as DashboardIcon, Business as BusinessIcon, Person as PersonIcon 
+    Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, 
+    Search as SearchIcon, Close as CloseIcon 
 } from '@mui/icons-material';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import TopBar from '@/components/Topbar'; // <--- 1. 引入 TopBar 组件
 
-const DRAWER_WIDTH = 280;
+import { getUsers, createUser, updateUser, deleteUser, getUserRoles } from '@/app/actions/user';
+import { getCurrentUser } from '@/app/actions/auth';
 
-export default function MainLayout({ children }: { children: React.ReactNode }) {
-    const [open, setOpen] = useState(true);
-    const pathname = usePathname();
-    const theme = useTheme();
+export default function UsersPage() {
+    // --- 状态管理 ---
+    const [currentUser, setCurrentUser] = useState<any>(null);
+    const [users, setUsers] = useState<any[]>([]);
+    const [total, setTotal] = useState(0);
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+    
+    // 过滤状态
+    const [searchName, setSearchName] = useState('');
+    const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+    const [allRoles, setAllRoles] = useState<string[]>(['Admin', 'Manager', 'User']);
 
-    const toggleDrawer = () => setOpen(!open);
+    // 抽屉状态
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'User', status: 'Active' });
+    
+    // 提示状态
+    const [toast, setToast] = useState({ open: false, message: '', type: 'success' as 'success' | 'error' });
 
-    const navItems = [
-        { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-        { text: 'Companies', icon: <BusinessIcon />, path: '/companies' },
-        { text: 'User', icon: <PersonIcon />, path: '/users' },
-    ];
+    // --- 初始化权限与动态角色列表 ---
+    useEffect(() => {
+        const initData = async () => {
+            const userRes = await getCurrentUser();
+            if (userRes.success) setCurrentUser(userRes.data);
+            
+            const roles = await getUserRoles();
+            if (roles.length > 0) setAllRoles(roles);
+        };
+        initData();
+    }, []);
+
+    // --- 监听过滤与分页参数，带防抖的请求 ---
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchUsers();
+        }, 300); // 300ms防抖
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchName, selectedRoles, page, rowsPerPage]);
+
+    // 重置页码
+    useEffect(() => {
+        setPage(0);
+    }, [searchName, selectedRoles]);
+
+    const fetchUsers = async () => {
+        const res = await getUsers({ 
+            search: searchName, 
+            roles: selectedRoles, 
+            page: page + 1, 
+            pageSize: rowsPerPage 
+        });
+        if (res.success) {
+            setUsers(res.data);
+            setTotal(res.total);
+        }
+    };
+
+    // --- 权限计算器 ---
+    const isAdmin = currentUser?.role === 'Admin';
+    const isManager = currentUser?.role === 'Manager';
+    // const isUser = currentUser?.role === 'User';
+
+    const canAddUser = isAdmin || isManager;
+    const canOperateRow = (targetRole: string) => {
+        if (isAdmin) return targetRole !== 'Admin'; 
+        if (isManager) return targetRole === 'User'; 
+        return false;
+    };
+
+    // --- 事件处理 ---
+    const handleOpenDrawer = (user?: any) => {
+        if (user) {
+            setEditingId(user.id);
+            setFormData({ name: user.name || '', email: user.email, password: '', role: user.role, status: user.status });
+        } else {
+            setEditingId(null);
+            setFormData({ name: '', email: '', password: '', role: 'User', status: 'Active' });
+        }
+        setDrawerOpen(true);
+    };
+
+    const handleSave = async () => {
+        let res;
+        if (editingId) {
+            const { password, ...updateData } = formData;
+            res = await updateUser({ id: editingId, ...updateData, ...(password ? { password } : {}) });
+        } else {
+            res = await createUser(formData);
+        }
+
+        if (res.success) {
+            setToast({ open: true, message: '操作成功', type: 'success' });
+            setDrawerOpen(false);
+            fetchUsers();
+        } else {
+            setToast({ open: true, message: res.error || '操作失败', type: 'error' });
+        }
+    };
+
+    const handleDelete = async (id: number) => {
+        if (!confirm('确定要删除该用户吗？')) return;
+        const res = await deleteUser(id);
+        if (res.success) {
+            setToast({ open: true, message: '删除成功', type: 'success' });
+            fetchUsers();
+        } else {
+            setToast({ open: true, message: '删除失败', type: 'error' });
+        }
+    };
 
     return (
-        <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: '#fcfaf5' }}>
-            {/* --- 左侧：侧边栏 (Sidebar) --- */}
-            <Drawer
-                variant="permanent"
-                open={open}
+        <Box>
+            {/* 顶部标题与操作区 */}
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 4 }}>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: '#5d4037', letterSpacing: '-0.5px' }}>
+                    User Management
+                </Typography>
+                
+                {canAddUser && (
+                    <Button 
+                        variant="contained" 
+                        startIcon={<AddIcon />} 
+                        onClick={() => handleOpenDrawer()}
+                        sx={{ 
+                            bgcolor: '#6d8c7d', borderRadius: '8px', 
+                            boxShadow: '0 8px 16px rgba(109, 140, 125, 0.24)',
+                            '&:hover': { bgcolor: '#5a7568', boxShadow: '0 8px 16px rgba(109, 140, 125, 0.4)' } 
+                        }}
+                    >
+                        Add User
+                    </Button>
+                )}
+            </Stack>
+
+            {/* --- Filter Bar --- */}
+            <Paper
+                elevation={0}
                 sx={{
-                    width: open ? DRAWER_WIDTH : 88,
-                    flexShrink: 0,
-                    '& .MuiDrawer-paper': {
-                        width: open ? DRAWER_WIDTH : 88,
-                        transition: theme.transitions.create('width', {
-                            easing: theme.transitions.easing.sharp,
-                            duration: theme.transitions.duration.enteringScreen,
-                        }),
-                        overflowX: 'hidden',
-                        backgroundColor: '#fff',
-                        borderRight: '1px dashed rgba(145, 158, 171, 0.2)',
-                    },
+                    p: 3, mb: 4, borderRadius: '24px', backgroundColor: 'rgba(255, 253, 245, 0.6)',
+                    backdropFilter: 'blur(20px)', border: '1px solid rgba(139, 115, 85, 0.1)',
+                    display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center'
                 }}
             >
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: open ? 'space-between' : 'center', px: 2, py: 3 }}>
-                    {open && <Typography variant="h6" sx={{ fontWeight: 800, color: '#5d4037' }}>MY SYSTEM</Typography>}
-                    <IconButton onClick={toggleDrawer}><MenuIcon /></IconButton>
+                <TextField
+                    placeholder="Search by name or email..."
+                    variant="outlined"
+                    size="small"
+                    value={searchName}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchName(e.target.value)}
+                    sx={{
+                        flexGrow: 1, maxWidth: '400px',
+                        '& .MuiOutlinedInput-root': {
+                            borderRadius: '50px', backgroundColor: '#fff',
+                            '& fieldset': { borderColor: 'rgba(141, 110, 99, 0.2)' },
+                            '&:hover fieldset': { borderColor: '#6d8c7d' },
+                            '&.Mui-focused fieldset': { borderColor: '#6d8c7d' },
+                        }
+                    }}
+                    slotProps={{
+                        input: { startAdornment: <InputAdornment position="start"><SearchIcon sx={{ color: '#8d6e63' }} /></InputAdornment> }
+                    }}
+                />
+
+                <FormControl size="small" sx={{ minWidth: 220 }}>
+                    <InputLabel id="role-filter-label" sx={{ color: '#8d6e63' }}>Filter by Role</InputLabel>
+                    {/* @ts-expect-error: MUI Select React 19 compatibility */}
+                    <Select
+                        labelId="role-filter-label"
+                        multiple
+                        value={selectedRoles}
+                        onChange={(e: { target: { value: string | string[] } }) => setSelectedRoles(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value as string[])}
+                        input={<OutlinedInput label="Filter by Role" />}
+                        renderValue={(selected: string[]) => (
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                {selected.map((value: string) => (
+                                    <Chip key={value} label={value} size="small" sx={{ backgroundColor: '#e0dbd6', color: '#4e342e' }} />
+                                ))}
+                            </Box>
+                        )}
+                        sx={{
+                            borderRadius: '50px', backgroundColor: '#fff',
+                            '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(141, 110, 99, 0.2)' },
+                            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#6d8c7d' },
+                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#6d8c7d' },
+                        }}
+                    >
+                        {allRoles.map((role) => (
+                            <MenuItem key={role} value={role} sx={{ borderRadius: "10px", mx: 1 }}>
+                                {role}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+            </Paper>
+
+            {/* --- 表格区 --- */}
+            <Paper elevation={0} sx={{ borderRadius: '24px', border: '1px solid rgba(0,0,0,0.02)', boxShadow: '0 4px 20px rgba(139, 115, 85, 0.05)', overflow: 'hidden' }}>
+                <TableContainer>
+                    <Table>
+                        <TableHead sx={{ bgcolor: '#faf9f6' }}>
+                            <TableRow>
+                                <TableCell sx={{ fontWeight: 'bold', color: '#8d6e63' }}>NAME</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', color: '#8d6e63' }}>EMAIL</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', color: '#8d6e63' }}>ROLE</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', color: '#8d6e63' }}>STATUS</TableCell>
+                                {canAddUser && <TableCell align="right" sx={{ fontWeight: 'bold', color: '#8d6e63' }}>ACTIONS</TableCell>}
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {users.length > 0 ? users.map((row) => (
+                                <TableRow key={row.id} hover>
+                                    <TableCell sx={{ fontWeight: 600, color: '#5d4037' }}>{row.name || '-'}</TableCell>
+                                    <TableCell sx={{ color: '#637381' }}>{row.email}</TableCell>
+                                    <TableCell>
+                                        <Chip 
+                                            label={row.role} 
+                                            size="small" 
+                                            sx={{ 
+                                                bgcolor: row.role === 'Admin' ? '#ffebee' : row.role === 'Manager' ? '#fff3e0' : '#e8f5e9',
+                                                color: row.role === 'Admin' ? '#c62828' : row.role === 'Manager' ? '#ef6c00' : '#2e7d32',
+                                                fontWeight: 'bold'
+                                            }} 
+                                        />
+                                    </TableCell>
+                                    <TableCell>
+                                        <Chip 
+                                            label={row.status} size="small" variant="outlined"
+                                            color={row.status === 'Active' ? 'success' : 'default'}
+                                        />
+                                    </TableCell>
+                                    
+                                    {canAddUser && (
+                                        <TableCell align="right">
+                                            {canOperateRow(row.role) ? (
+                                                <>
+                                                    <IconButton size="small" onClick={() => handleOpenDrawer(row)} sx={{ color: '#6d8c7d' }}>
+                                                        <EditIcon fontSize="small" />
+                                                    </IconButton>
+                                                    <IconButton size="small" onClick={() => handleDelete(row.id)} sx={{ color: '#d32f2f' }}>
+                                                        <DeleteIcon fontSize="small" />
+                                                    </IconButton>
+                                                </>
+                                            ) : (
+                                                <Typography variant="caption" color="textSecondary">无权限</Typography>
+                                            )}
+                                        </TableCell>
+                                    )}
+                                </TableRow>
+                            )) : (
+                                <TableRow>
+                                    {/* @ts-expect-error: MUI Select React 19 compatibility */}
+                                    <TableCell colSpan={canAddUser ? 5 : 4} align="center" sx={{ py: 6, color: '#aa8e85' }}>
+                                        No users found.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+                <TablePagination
+                    component="div" count={total} page={page} rowsPerPage={rowsPerPage}
+                    onPageChange={(e: unknown, newPage: number) => setPage(newPage)}
+                    onRowsPerPageChange={(e: React.ChangeEvent<HTMLInputElement>) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+                    sx={{ color: '#8d6e63', borderTop: '1px solid rgba(0,0,0,0.04)' }}
+                />
+            </Paper>
+
+            {/* --- 抽屉：新增/编辑 --- */}
+            <Drawer
+                anchor="right"
+                open={drawerOpen}
+                onClose={() => setDrawerOpen(false)}
+                PaperProps={{
+                    sx: { width: { xs: '100%', sm: 400 }, p: 3, backgroundColor: '#faf9f6' }
+                }}
+            >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: '#5d4037' }}>
+                        {editingId ? 'Edit User' : 'Add New User'}
+                    </Typography>
+                    <IconButton onClick={() => setDrawerOpen(false)} size="small">
+                        <CloseIcon />
+                    </IconButton>
                 </Box>
 
-                <Divider sx={{ borderStyle: 'dashed', mb: 2 }} />
+                <Stack spacing={3} sx={{ flexGrow: 1 }}>
+                    <TextField 
+                        label="Name" size="small" fullWidth value={formData.name} 
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, name: e.target.value})} 
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', bgcolor: '#fff' } }}
+                    />
+                    <TextField 
+                        label="Email" size="small" fullWidth value={formData.email} disabled={!!editingId}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, email: e.target.value})} 
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', bgcolor: '#fff' } }}
+                    />
+                    <TextField 
+                        label={editingId ? "New Password (leave blank to keep)" : "Password"} type="password" size="small" fullWidth value={formData.password} 
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, password: e.target.value})} 
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', bgcolor: '#fff' } }}
+                    />
+                    
+                    <TextField 
+                        select label="Role" size="small" fullWidth value={formData.role} 
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, role: e.target.value})}
+                        disabled={!isAdmin} 
+                        helperText={!isAdmin && "Manager 只能创建或编辑普通 User"}
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', bgcolor: '#fff' } }}
+                    >
+                        {isAdmin && <MenuItem value="Manager">Manager</MenuItem>}
+                        <MenuItem value="User">User</MenuItem>
+                    </TextField>
 
-                <List sx={{ px: 2 }}>
-                    {navItems.map((item) => {
-                        const active = pathname === item.path;
-                        return (
-                            <ListItem key={item.text} disablePadding sx={{ display: 'block', mb: 1 }}>
-                                <ListItemButton
-                                    component={Link}
-                                    href={item.path}
-                                    sx={{
-                                        minHeight: 48,
-                                        justifyContent: open ? 'initial' : 'center',
-                                        borderRadius: '12px',
-                                        backgroundColor: active ? 'rgba(109, 140, 125, 0.08)' : 'transparent',
-                                        color: active ? '#6d8c7d' : '#637381',
-                                    }}
-                                >
-                                    <ListItemIcon sx={{ minWidth: 0, mr: open ? 3 : 'auto', justifyContent: 'center', color: 'inherit' }}>
-                                        {item.icon}
-                                    </ListItemIcon>
-                                    <ListItemText primary={item.text} sx={{ opacity: open ? 1 : 0 }} />
-                                </ListItemButton>
-                            </ListItem>
-                        );
-                    })}
-                </List>
+                    <TextField 
+                        select label="Status" size="small" fullWidth value={formData.status} 
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, status: e.target.value})}
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', bgcolor: '#fff' } }}
+                    >
+                        <MenuItem value="Active">Active</MenuItem>
+                        <MenuItem value="Inactive">Inactive</MenuItem>
+                    </TextField>
+                </Stack>
+
+                <Stack direction="row" spacing={2} sx={{ mt: 4 }}>
+                    <Button fullWidth onClick={() => setDrawerOpen(false)} variant="outlined" sx={{ color: '#5d4037', borderColor: 'rgba(139, 115, 85, 0.3)', borderRadius: '12px' }}>
+                        Cancel
+                    </Button>
+                    <Button fullWidth onClick={handleSave} variant="contained" sx={{ bgcolor: '#6d8c7d', borderRadius: '12px', boxShadow: 'none', '&:hover': { bgcolor: '#5a7568' } }}>
+                        Save User
+                    </Button>
+                </Stack>
             </Drawer>
 
-            {/* --- 右侧：主区域 (包含 TopBar 和 页面内容) --- */}
-            <Box 
-                component="main" 
-                sx={{ 
-                    flexGrow: 1, 
-                    width: '100%', 
-                    display: 'flex',        // <--- 2. 改为 Flex 布局
-                    flexDirection: 'column' // <--- 3. 垂直排列 (TopBar 在上，内容在下)
-                }}
-            >
-                {/* A. 顶部栏 */}
-                <TopBar />
-
-                {/* B. 页面实际内容 */}
-                <Box sx={{ 
-                    flexGrow: 1, 
-                    p: { xs: 2, md: 5 }, // <--- 4. Padding 移到这里，防止 TopBar 被挤压
-                    overflow: 'auto'     // 内容过多时出现滚动条
-                }}>
-                    {children}
-                </Box>
-            </Box>
+            {/* --- 提示消息 --- */}
+            <Snackbar open={toast.open} autoHideDuration={3000} onClose={() => setToast({...toast, open: false})} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
+                {/* @ts-expect-error: Known type issue with MUI Alert and React 19 */}
+                <Alert severity={toast.type} sx={{ borderRadius: '12px' }}>{toast.message}</Alert>
+            </Snackbar>
         </Box>
     );
 }
