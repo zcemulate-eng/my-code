@@ -21,7 +21,6 @@ import {
 	Collapse,
 	InputAdornment,
 	OutlinedInput,
-	SelectChangeEvent,
 	TablePagination
 } from '@mui/material';
 import {
@@ -30,6 +29,8 @@ import {
 	Search as SearchIcon
 } from '@mui/icons-material';
 import { getCompanies, getCompanyLevels } from '@/app/actions/company';
+
+type SelectChangeEvent<T = string> = { target: { value: T } };
 
 // --- 类型定义 ---
 interface CompanyData {
@@ -108,7 +109,9 @@ function Row({ row }: { row: CompanyData }) {
 
 			{/* 折叠详情行 */}
 			<TableRow>
-				<TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={5}>
+				{/* @ts-expect-error: MUI React 19 compatibility */}
+				<TableCell sx={{ paddingBottom: 0, paddingTop: 0 }} colSpan={5}>
+					{/* @ts-expect-error: MUI React 19 compatibility */}
 					<Collapse in={open} timeout="auto" unmountOnExit>
 						<Box sx={{ margin: 2, ml: 8, p: 3, backgroundColor: 'rgba(255,255,255,0.6)', borderRadius: '12px', border: '1px dashed rgba(141, 110, 99, 0.2)' }}>
 							<Typography variant="h6" gutterBottom component="div" sx={{ fontSize: '0.9rem', fontWeight: 700, color: '#6d8c7d', mb: 2 }}>
@@ -191,10 +194,7 @@ export default function CompaniesPage() {
 	};
 
 	const handleLevelChange = (event: SelectChangeEvent<number[]>) => {
-		const { target: { value } } = event;
-		setSelectedLevels(
-			typeof value === 'string' ? value.split(',').map(Number) : value as number[]
-		);
+    	setSelectedLevels(event.target.value as number[]);
 	};
 
 	// 分页处理
@@ -234,7 +234,7 @@ export default function CompaniesPage() {
 					variant="outlined"
 					size="small"
 					value={searchName}
-					onChange={(e) => setSearchName(e.target.value)}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchName(e.target.value)}
 					sx={{
 						flexGrow: 1,
 						maxWidth: '400px',
@@ -257,6 +257,7 @@ export default function CompaniesPage() {
 
 				<FormControl size="small" sx={{ minWidth: 220 }}>
 					<InputLabel id="level-filter-label" sx={{ color: '#8d6e63' }}>Filter by Level</InputLabel>
+					{/* @ts-expect-error: MUI Select React 19 compatibility */}
 					<Select
 						labelId="level-filter-label"
 						multiple
@@ -271,9 +272,9 @@ export default function CompaniesPage() {
 								},
 							},
 						}}
-						renderValue={(selected) => (
-							<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-								{selected.map((value) => (
+						renderValue={(selected: number[]) => (
+    						<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+        						{selected.map((value: number) => (
 									<Chip key={value} label={`Level ${value}`} size="small" sx={{ backgroundColor: '#e0dbd6', color: '#4e342e' }} />
 								))}
 							</Box>
@@ -310,7 +311,7 @@ export default function CompaniesPage() {
 					<Table aria-label="companies table">
 						<TableHead sx={{ backgroundColor: '#faf9f6' }}>
 							<TableRow>
-								<TableCell width={50} />
+								<TableCell sx={{ width: 50 }} />
 								<TableCell sx={{ color: '#8d6e63', fontWeight: 700 }}>NAME</TableCell>
 								<TableCell sx={{ color: '#8d6e63', fontWeight: 700 }}>LEVEL</TableCell>
 								<TableCell sx={{ color: '#8d6e63', fontWeight: 700 }}>COUNTRY</TableCell>
@@ -326,6 +327,7 @@ export default function CompaniesPage() {
 								))
 							) : (
 								<TableRow>
+									{/* @ts-expect-error: MUI React 19 compatibility */}
 									<TableCell colSpan={5} align="center" sx={{ py: 10, color: '#aa8e85' }}>
 										<Typography variant="body1">No companies found.</Typography>
 									</TableCell>

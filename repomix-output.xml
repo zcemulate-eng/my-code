@@ -57,6 +57,8 @@ public/
 src/
   app/
     (main)/
+      account/
+        page.tsx
       companies/
         page.tsx
       dashboard/
@@ -82,6 +84,7 @@ src/
     CompanyBubbleChart.tsx
     Navbar.tsx
     Topbar.tsx
+    WelcomeModal.tsx
   data/
     dummyHierarchy.ts
   lib/
@@ -100,6 +103,1664 @@ tsconfig.json
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="src/app/(main)/account/page.tsx">
+// src/app/(main)/account/page.tsx
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { 
+    Box, Card, CardContent, Typography, TextField, Button, 
+    Avatar, IconButton, MenuItem, Select, FormControl, 
+    Stack, Snackbar, Alert, CircularProgress, Grid, SelectChangeEvent 
+} from '@mui/material';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import { getCurrentUser, updateAccount } from '@/app/actions/auth'; 
+
+const inputSx = {
+    '& .MuiOutlinedInput-root': {
+        borderRadius: '8px',
+        backgroundColor: '#fff',
+        '& fieldset': { borderColor: 'rgba(141, 110, 99, 0.2)' },
+        '&:hover fieldset': { borderColor: '#8d6e63' },
+        '&.Mui-focused fieldset': { borderColor: '#6d8c7d', borderWidth: '2px' },
+    },
+    '& .MuiInputBase-input': { color: '#4e342e', fontWeight: 500 }
+};
+
+export default function AccountManagementPage() {
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [toast, setToast] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+    
+    // 表单状态
+    const [formData, setFormData] = useState({
+        name: '', email: '', phone: '', gender: '', dob: '', address: '', avatarUrl: ''
+    });
+
+    // 错误状态记录（昵称和电话）
+    const [errors, setErrors] = useState({
+        name: '',
+        phone: ''
+    });
+
+    useEffect(() => {
+        const fetchUserData = async () => {
+            const res = await getCurrentUser();
+            if (res.success && res.data) {
+                setFormData({
+                    name: res.data.name || '',
+                    email: res.data.email || '',
+                    phone: res.data.phone || '',
+                    gender: res.data.gender || '',
+                    dob: res.data.dob || '',
+                    address: res.data.address || '',
+                    avatarUrl: res.data.avatarUrl || ''
+                });
+            }
+            setLoading(false);
+        };
+        fetchUserData();
+    }, []);
+
+    const handleChange = (field: string) => (
+        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent<string>
+    ) => {
+        setFormData(prev => ({ ...prev, [field]: e.target.value }));
+        
+        // 用户修改时清除对应的报错提示
+        if (field === 'name' || field === 'phone') {
+            setErrors(prev => ({ ...prev, [field]: '' }));
+        }
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (ev) => setFormData(prev => ({ ...prev, avatarUrl: ev.target?.result as string }));
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    };
+
+    // 提交前的前端数据校验
+    const validateForm = () => {
+        let isValid = true;
+        const newErrors = { name: '', phone: '' };
+
+        // 校验电话：存在才校验
+        if (formData.phone) {
+            if (formData.phone.charAt(0) !== '1') {
+                newErrors.phone = "首位数字要求为 1";
+                isValid = false;
+            } else if (!/^\d{11}$/.test(formData.phone)) {
+                newErrors.phone = "电话号码要求 11 位数字";
+                isValid = false;
+            }
+        }
+
+        setErrors(newErrors);
+        return isValid;
+    };
+
+    const handleSubmit = async () => {
+        if (!validateForm()) return; // 校验不通过直接拦截
+
+        setSaving(true);
+        try {
+            const result = await updateAccount({
+                name: formData.name,
+                phone: formData.phone,
+                gender: formData.gender,
+                dob: formData.dob,
+                address: formData.address,
+                avatarUrl: formData.avatarUrl
+            });
+            
+            if (result.success) {
+                setToast({ open: true, message: result.message || '更新成功', severity: 'success' });
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                // 如果后端返回昵称占用，将错误挂载到昵称输入框下方
+                if (result.message === "该昵称已被人使用") {
+                    setErrors(prev => ({ ...prev, name: result.message }));
+                }
+                setToast({ open: true, message: result.message || '更新失败', severity: 'error' });
+            }
+        } catch (error) {
+            setToast({ open: true, message: '网络请求错误', severity: 'error' });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+                <CircularProgress sx={{ color: '#6d8c7d' }} />
+            </Box>
+        );
+    }
+
+    return (
+        <Box sx={{ maxWidth: 1200, margin: '0 auto', pb: 5 }}>
+            <Box sx={{ mb: 4 }}>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: '#4e342e', mb: 1, letterSpacing: '-0.5px' }}>
+                    Account
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#8d6e63' }}>
+                    Dashboard / User / Account
+                </Typography>
+            </Box>
+
+            <Grid container spacing={4}>
+                {/* 左侧区块 (1/3) 头像 */}
+                <Grid size={{ xs: 12, md: 4 }}>
+                    <Card elevation={0} sx={{ 
+                        borderRadius: '16px', p: 4, textAlign: 'center',
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(20px)',
+                        border: '1px solid rgba(139, 115, 85, 0.08)', boxShadow: '0 8px 24px rgba(139, 115, 85, 0.04)' 
+                    }}>
+                        <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', p: 0 }}>
+                            <Box sx={{ position: 'relative', p: 1, border: '1px dashed rgba(141, 110, 99, 0.3)', borderRadius: '50%', mb: 3 }}>
+                                <Avatar 
+                                    src={formData.avatarUrl || undefined}
+                                    sx={{ width: 140, height: 140, bgcolor: '#efebe9', fontSize: '3rem', color: '#a1887f' }}
+                                >
+                                    {formData.name ? formData.name.charAt(0).toUpperCase() : 'U'}
+                                </Avatar>
+                                <IconButton 
+                                    component="label" 
+                                    sx={{ 
+                                        position: 'absolute', bottom: 10, right: 10, bgcolor: '#6d8c7d', color: '#fff', 
+                                        border: '3px solid #fff', width: 40, height: 40, '&:hover': { bgcolor: '#5a7568' },
+                                        boxShadow: '0 4px 12px rgba(109, 140, 125, 0.4)'
+                                    }}
+                                >
+                                    <PhotoCameraIcon fontSize="small" />
+                                    <input type="file" hidden accept="image/*" onChange={handleFileChange} />
+                                </IconButton>
+                            </Box>
+                            <Typography variant="caption" sx={{ color: '#9e9e9e', display: 'block', maxWidth: 200, lineHeight: 1.5 }}>
+                                允许格式 *.jpeg, *.jpg, *.png, *.gif <br />最大文件限制 3.1 MB
+                            </Typography>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                {/* 右侧区块 (2/3) 表单 */}
+                <Grid size={{ xs: 12, md: 8 }}>
+                    <Card elevation={0} sx={{ 
+                        borderRadius: '16px', p: { xs: 3, md: 4 }, backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        backdropFilter: 'blur(20px)', border: '1px solid rgba(139, 115, 85, 0.08)',
+                        boxShadow: '0 8px 24px rgba(139, 115, 85, 0.04)' 
+                    }}>
+                        <CardContent sx={{ p: 0 }}>
+                            <Grid container spacing={3}>
+                                {/* 登录邮箱放第一 (禁用态) */}
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <Typography variant="caption" sx={{ color: '#795548', display: 'block', mb: 1, fontWeight: 'bold' }}>
+                                        登录邮箱
+                                    </Typography>
+                                    <TextField 
+                                        fullWidth size="small" disabled
+                                        value={formData.email} 
+                                        sx={{
+                                            '& .MuiOutlinedInput-root': {
+                                                borderRadius: '8px', backgroundColor: 'rgba(141, 110, 99, 0.05)',
+                                                '& fieldset': { borderColor: 'transparent' }, '&.Mui-disabled': { color: '#8d6e63' }
+                                            },
+                                            '& .MuiInputBase-input.Mui-disabled': { WebkitTextFillColor: '#8d6e63' }
+                                        }}
+                                    />
+                                </Grid>
+
+                                {/* 姓名/昵称放第二 */}
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <Typography variant="caption" sx={{ color: '#795548', display: 'block', mb: 1, fontWeight: 'bold' }}>
+                                        姓名 / 昵称
+                                    </Typography>
+                                    <TextField 
+                                        fullWidth size="small" 
+                                        value={formData.name} onChange={handleChange('name')}
+                                        error={!!errors.name} helperText={errors.name}
+                                        sx={inputSx}
+                                    />
+                                </Grid>
+
+                                {/* 电话号码 */}
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <Typography variant="caption" sx={{ color: '#795548', display: 'block', mb: 1, fontWeight: 'bold' }}>
+                                        电话号码
+                                    </Typography>
+                                    <TextField 
+                                        fullWidth size="small" 
+                                        value={formData.phone} onChange={handleChange('phone')}
+                                        error={!!errors.phone} helperText={errors.phone}
+                                        sx={inputSx}
+                                    />
+                                </Grid>
+
+                                {/* 性别 */}
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <Typography variant="caption" sx={{ color: '#795548', display: 'block', mb: 1, fontWeight: 'bold' }}>
+                                        性别
+                                    </Typography>
+                                    <FormControl fullWidth size="small" sx={inputSx}>
+                                        <Select value={formData.gender} onChange={handleChange('gender')} displayEmpty>
+                                            <MenuItem value="" disabled>请选择性别</MenuItem>
+                                            <MenuItem value="男">男</MenuItem>
+                                            <MenuItem value="女">女</MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                </Grid>
+
+                                {/* 出生年月：唤起浏览器原生日期日历 */}
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <Typography variant="caption" sx={{ color: '#795548', display: 'block', mb: 1, fontWeight: 'bold' }}>
+                                        出生年月
+                                    </Typography>
+                                    <TextField 
+                                        fullWidth size="small" 
+                                        type="date"
+                                        value={formData.dob} onChange={handleChange('dob')}
+                                        // 解决日期 placeholder 和文字重叠的问题
+                                        InputLabelProps={{ shrink: true }}
+                                        sx={inputSx}
+                                    />
+                                </Grid>
+
+                                {/* 详细地址 */}
+                                <Grid size={{ xs: 12 }}>
+                                    <Typography variant="caption" sx={{ color: '#795548', display: 'block', mb: 1, fontWeight: 'bold' }}>
+                                        详细地址
+                                    </Typography>
+                                    <TextField 
+                                        fullWidth size="small" 
+                                        value={formData.address} onChange={handleChange('address')}
+                                        sx={inputSx}
+                                    />
+                                </Grid>
+                            </Grid>
+
+                            {/* 操作区域 */}
+                            <Stack direction="row" justifyContent="flex-end" sx={{ mt: 5 }}>
+                                <Button 
+                                    variant="contained" onClick={handleSubmit} disabled={saving}
+                                    sx={{ 
+                                        bgcolor: '#6d8c7d', borderRadius: '8px', px: 4, py: 1.2, fontWeight: 'bold', textTransform: 'none',
+                                        boxShadow: '0 8px 16px rgba(109, 140, 125, 0.24)',
+                                        '&:hover': { bgcolor: '#5a7568', boxShadow: '0 8px 16px rgba(109, 140, 125, 0.4)' },
+                                        '&.Mui-disabled': { bgcolor: '#cfd8d4', color: '#fff' }
+                                    }}
+                                >
+                                    {saving ? 'Saving...' : 'Save Changes'}
+                                </Button>
+                            </Stack>
+                        </CardContent>
+                    </Card>
+                </Grid>
+            </Grid>
+
+            <Snackbar open={toast.open} autoHideDuration={3000} onClose={() => setToast({ ...toast, open: false })} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
+                {/* @ts-expect-error: Known type issue with MUI Alert and React 19 */}
+                <Alert severity={toast.severity} sx={{ borderRadius: '12px' }}>{toast.message}</Alert>
+            </Snackbar>
+        </Box>
+    );
+}
+</file>
+
+<file path="src/components/WelcomeModal.tsx">
+// src/components/WelcomeModal.tsx
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { 
+    Dialog, DialogTitle, DialogContent, DialogActions, 
+    Button, Avatar, Box, Typography, IconButton,
+    Radio, RadioGroup, FormControlLabel, FormControl, FormLabel
+} from '@mui/material';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import WcIcon from '@mui/icons-material/Wc';
+// 引入后端接口
+import { getCurrentUser, completeFirstLogin } from '@/app/actions/auth'; 
+
+export default function WelcomeModal() {
+    const [open, setOpen] = useState(false);
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+    const [gender, setGender] = useState<string>('');
+
+    useEffect(() => {
+        // 向后端查询当前用户状态
+        const checkUserStatus = async () => {
+            const res = await getCurrentUser();
+            if (res.success && res.data && res.data.isFirstLogin) {
+                setOpen(true);
+            }
+        };
+        checkUserStatus();
+    }, []);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (e) => setAvatarPreview(e.target?.result as string);
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    };
+
+    const handleSave = async () => {
+        // 增加等待状态或直接捕获结果
+        const result = await completeFirstLogin({ avatarUrl: avatarPreview, gender });
+        
+        if (result.success) {
+            setOpen(false);
+            window.location.reload(); // 保存成功，安全刷新
+        } else {
+            alert(result.message || "保存失败，图片可能过大或网络异常");
+        }
+    };
+
+    const handleSkip = async () => {
+        const defaultAvatars = [
+            '/static/avatars/cartoon-1.png', 
+            '/static/avatars/cartoon-2.png'
+        ];
+        const randomAvatar = defaultAvatars[Math.floor(Math.random() * defaultAvatars.length)];
+        
+        const result = await completeFirstLogin({ avatarUrl: randomAvatar, gender: '' });
+        
+        if (result.success) {
+            setOpen(false);
+            window.location.reload(); 
+        } else {
+            alert("跳过失败，请重试");
+        }
+    };
+
+    return (
+        <Dialog 
+            open={open} 
+            disableEscapeKeyDown
+            PaperProps={{ 
+                sx: { 
+                    borderRadius: '24px', 
+                    p: 3, 
+                    minWidth: '320px',
+                    textAlign: 'center',
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    backdropFilter: 'blur(20px)',
+                    boxShadow: '0 24px 48px rgba(93, 64, 55, 0.15)'
+                } 
+            }}
+        >
+            <DialogTitle sx={{ fontWeight: 900, color: '#4e342e', pb: 1, fontSize: '1.5rem' }}>
+                欢迎加入我们！
+            </DialogTitle>
+            <DialogContent sx={{ pb: 1, overflowY: 'visible' }}>
+                <Typography variant="body2" sx={{ color: '#8d6e63', mb: 4 }}>
+                    请完善您的基本信息，开启专属体验
+                </Typography>
+                
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                    
+                    {/* 1. 头像预览与上传按钮 */}
+                    <Box sx={{ position: 'relative' }}>
+                        <Avatar 
+                            src={avatarPreview || undefined} 
+                            sx={{ 
+                                width: 110, height: 110, 
+                                bgcolor: '#efebe9', 
+                                color: '#a1887f',
+                                border: '4px solid #fff',
+                                boxShadow: '0 8px 24px rgba(141, 110, 99, 0.2)' 
+                            }} 
+                        />
+                        <IconButton 
+                            component="label" 
+                            sx={{ 
+                                position: 'absolute', bottom: 0, right: 0, 
+                                bgcolor: '#6d8c7d', color: '#fff', 
+                                border: '3px solid #fff',
+                                width: 40, height: 40,
+                                '&:hover': { bgcolor: '#5a7568' },
+                                boxShadow: '0 4px 12px rgba(109, 140, 125, 0.4)'
+                            }}
+                        >
+                            <PhotoCameraIcon fontSize="small" />
+                            <input type="file" hidden accept="image/*" onChange={handleFileChange} />
+                        </IconButton>
+                    </Box>
+
+                    {/* 2. 性别单选按钮区域 */}
+                    <FormControl 
+                        component="fieldset" 
+                        sx={{ 
+                            width: '100%', 
+                            p: 2, 
+                            borderRadius: '16px', 
+                            backgroundColor: 'rgba(141, 110, 99, 0.04)',
+                            border: '1px dashed rgba(141, 110, 99, 0.2)'
+                        }}
+                    >
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1.5 }}>
+                            <WcIcon sx={{ color: '#8d6e63', fontSize: 20 }} />
+                            <FormLabel sx={{ 
+                                color: '#5d4037', fontWeight: 700, 
+                                '&.Mui-focused': { color: '#5d4037' } 
+                            }}>
+                                您的性别
+                            </FormLabel>
+                        </Box>
+                        
+                        <RadioGroup
+                            row
+                            value={gender}
+                            onChange={(e) => setGender(e.target.value)}
+                            sx={{ justifyContent: 'center', gap: 2 }}
+                        >
+                            <FormControlLabel 
+                                value="男" 
+                                control={
+                                    <Radio sx={{ 
+                                        color: '#bcaaa4', 
+                                        '&.Mui-checked': { color: '#6d8c7d' } 
+                                    }} />
+                                } 
+                                label={<Typography sx={{ fontWeight: gender === '男' ? 700 : 500, color: gender === '男' ? '#4e342e' : '#8d6e63' }}>男生</Typography>} 
+                            />
+                            <FormControlLabel 
+                                value="女" 
+                                control={
+                                    <Radio sx={{ 
+                                        color: '#bcaaa4', 
+                                        '&.Mui-checked': { color: '#6d8c7d' } 
+                                    }} />
+                                } 
+                                label={<Typography sx={{ fontWeight: gender === '女' ? 700 : 500, color: gender === '女' ? '#4e342e' : '#8d6e63' }}>女生</Typography>} 
+                            />
+                        </RadioGroup>
+                    </FormControl>
+
+                </Box>
+            </DialogContent>
+            
+            <DialogActions sx={{ justifyContent: 'center', pt: 3, pb: 2, gap: 2 }}>
+                <Button 
+                    onClick={handleSkip} 
+                    sx={{ color: '#8d6e63', fontWeight: 'bold', borderRadius: '50px', px: 3 }}
+                >
+                    暂时跳过
+                </Button>
+                <Button 
+                    onClick={handleSave} 
+                    variant="contained" 
+                    // 必须上传了头像并选择了性别才能点击“开启体验”
+                    disabled={!avatarPreview || !gender} 
+                    sx={{ 
+                        bgcolor: '#6d8c7d', borderRadius: '50px', px: 4, fontWeight: 'bold',
+                        boxShadow: '0 8px 20px rgba(109, 140, 125, 0.3)',
+                        '&:hover': { bgcolor: '#5a7568', boxShadow: '0 10px 25px rgba(109, 140, 125, 0.4)' },
+                        '&.Mui-disabled': { bgcolor: '#cfd8d4', color: '#fff', boxShadow: 'none' }
+                    }}
+                >
+                    开启体验
+                </Button>
+            </DialogActions>
+        </Dialog>
+    );
+}
+</file>
+
+<file path="prisma/migrations/20260109183014_init_v6/migration.sql">
+-- CreateTable
+CREATE TABLE `User` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `email` VARCHAR(191) NOT NULL,
+    `password` VARCHAR(191) NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    UNIQUE INDEX `User_email_key`(`email`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+</file>
+
+<file path="prisma/migrations/migration_lock.toml">
+# Please do not edit this file manually
+# It should be added in your version-control system (e.g., Git)
+provider = "mysql"
+</file>
+
+<file path="public/file.svg">
+<svg fill="none" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 13.5V5.41a1 1 0 0 0-.3-.7L9.8.29A1 1 0 0 0 9.08 0H1.5v13.5A2.5 2.5 0 0 0 4 16h8a2.5 2.5 0 0 0 2.5-2.5m-1.5 0v-7H8v-5H3v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1M9.5 5V2.12L12.38 5zM5.13 5h-.62v1.25h2.12V5zm-.62 3h7.12v1.25H4.5zm.62 3h-.62v1.25h7.12V11z" clip-rule="evenodd" fill="#666" fill-rule="evenodd"/></svg>
+</file>
+
+<file path="public/globe.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><g clip-path="url(#a)"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.27 14.1a6.5 6.5 0 0 0 3.67-3.45q-1.24.21-2.7.34-.31 1.83-.97 3.1M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.48-1.52a7 7 0 0 1-.96 0H7.5a4 4 0 0 1-.84-1.32q-.38-.89-.63-2.08a40 40 0 0 0 3.92 0q-.25 1.2-.63 2.08a4 4 0 0 1-.84 1.31zm2.94-4.76q1.66-.15 2.95-.43a7 7 0 0 0 0-2.58q-1.3-.27-2.95-.43a18 18 0 0 1 0 3.44m-1.27-3.54a17 17 0 0 1 0 3.64 39 39 0 0 1-4.3 0 17 17 0 0 1 0-3.64 39 39 0 0 1 4.3 0m1.1-1.17q1.45.13 2.69.34a6.5 6.5 0 0 0-3.67-3.44q.65 1.26.98 3.1M8.48 1.5l.01.02q.41.37.84 1.31.38.89.63 2.08a40 40 0 0 0-3.92 0q.25-1.2.63-2.08a4 4 0 0 1 .85-1.32 7 7 0 0 1 .96 0m-2.75.4a6.5 6.5 0 0 0-3.67 3.44 29 29 0 0 1 2.7-.34q.31-1.83.97-3.1M4.58 6.28q-1.66.16-2.95.43a7 7 0 0 0 0 2.58q1.3.27 2.95.43a18 18 0 0 1 0-3.44m.17 4.71q-1.45-.12-2.69-.34a6.5 6.5 0 0 0 3.67 3.44q-.65-1.27-.98-3.1" fill="#666"/></g><defs><clipPath id="a"><path fill="#fff" d="M0 0h16v16H0z"/></clipPath></defs></svg>
+</file>
+
+<file path="public/next.svg">
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 394 80"><path fill="#000" d="M262 0h68.5v12.7h-27.2v66.6h-13.6V12.7H262V0ZM149 0v12.7H94v20.4h44.3v12.6H94v21h55v12.6H80.5V0h68.7zm34.3 0h-17.8l63.8 79.4h17.9l-32-39.7 32-39.6h-17.9l-23 28.6-23-28.6zm18.3 56.7-9-11-27.1 33.7h17.8l18.3-22.7z"/><path fill="#000" d="M81 79.3 17 0H0v79.3h13.6V17l50.2 62.3H81Zm252.6-.4c-1 0-1.8-.4-2.5-1s-1.1-1.6-1.1-2.6.3-1.8 1-2.5 1.6-1 2.6-1 1.8.3 2.5 1a3.4 3.4 0 0 1 .6 4.3 3.7 3.7 0 0 1-3 1.8zm23.2-33.5h6v23.3c0 2.1-.4 4-1.3 5.5a9.1 9.1 0 0 1-3.8 3.5c-1.6.8-3.5 1.3-5.7 1.3-2 0-3.7-.4-5.3-1s-2.8-1.8-3.7-3.2c-.9-1.3-1.4-3-1.4-5h6c.1.8.3 1.6.7 2.2s1 1.2 1.6 1.5c.7.4 1.5.5 2.4.5 1 0 1.8-.2 2.4-.6a4 4 0 0 0 1.6-1.8c.3-.8.5-1.8.5-3V45.5zm30.9 9.1a4.4 4.4 0 0 0-2-3.3 7.5 7.5 0 0 0-4.3-1.1c-1.3 0-2.4.2-3.3.5-.9.4-1.6 1-2 1.6a3.5 3.5 0 0 0-.3 4c.3.5.7.9 1.3 1.2l1.8 1 2 .5 3.2.8c1.3.3 2.5.7 3.7 1.2a13 13 0 0 1 3.2 1.8 8.1 8.1 0 0 1 3 6.5c0 2-.5 3.7-1.5 5.1a10 10 0 0 1-4.4 3.5c-1.8.8-4.1 1.2-6.8 1.2-2.6 0-4.9-.4-6.8-1.2-2-.8-3.4-2-4.5-3.5a10 10 0 0 1-1.7-5.6h6a5 5 0 0 0 3.5 4.6c1 .4 2.2.6 3.4.6 1.3 0 2.5-.2 3.5-.6 1-.4 1.8-1 2.4-1.7a4 4 0 0 0 .8-2.4c0-.9-.2-1.6-.7-2.2a11 11 0 0 0-2.1-1.4l-3.2-1-3.8-1c-2.8-.7-5-1.7-6.6-3.2a7.2 7.2 0 0 1-2.4-5.7 8 8 0 0 1 1.7-5 10 10 0 0 1 4.3-3.5c2-.8 4-1.2 6.4-1.2 2.3 0 4.4.4 6.2 1.2 1.8.8 3.2 2 4.3 3.4 1 1.4 1.5 3 1.5 5h-5.8z"/></svg>
+</file>
+
+<file path="public/vercel.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1155 1000"><path d="m577.3 0 577.4 1000H0z" fill="#fff"/></svg>
+</file>
+
+<file path="public/window.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M1.5 2.5h13v10a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1zM0 1h16v11.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 0 12.5zm3.75 4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5M7 4.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0m1.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5" fill="#666"/></svg>
+</file>
+
+<file path="src/app/(main)/users/page.tsx">
+// src/app/(main)/users/page.tsx
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
+
+// ✅ MUI v7 修复：全部改为子路径导入，解决 "Select cannot be used as JSX component" 问题
+import Box from '@mui/material/Box';
+import Paper from '@mui/material/Paper';
+import Typography from '@mui/material/Typography';
+import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import TablePagination from '@mui/material/TablePagination';
+import Checkbox from '@mui/material/Checkbox';
+import IconButton from '@mui/material/IconButton';
+import Chip from '@mui/material/Chip';
+import Drawer from '@mui/material/Drawer';
+import MenuItem from '@mui/material/MenuItem';
+import InputAdornment from '@mui/material/InputAdornment';
+import Stack from '@mui/material/Stack';
+import Select from '@mui/material/Select';
+import InputLabel from '@mui/material/InputLabel';
+import FormControl from '@mui/material/FormControl';
+import OutlinedInput from '@mui/material/OutlinedInput';
+import Tooltip from '@mui/material/Tooltip';
+import Alert from '@mui/material/Alert';
+import Skeleton from '@mui/material/Skeleton';
+
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import SearchIcon from '@mui/icons-material/Search';
+import CloseIcon from '@mui/icons-material/Close';
+import LockIcon from '@mui/icons-material/Lock';
+
+import {
+  getUsers,
+  deleteUser,
+  deleteUsers,
+  getUserRoles,
+  createUser,
+  updateUser,
+  type CreateUserDTO,
+} from '@/app/actions/user';
+import { getCurrentUser } from '@/app/actions/auth';
+
+// ─────────────────────────────────────────────
+// 类型定义
+// ─────────────────────────────────────────────
+
+interface UserData {
+  id: number;
+  name: string | null;
+  email: string;
+  role: string;
+  status: string;
+}
+
+interface CurrentUser {
+  id: number;
+  name: string | null;
+  email: string;
+  role: string;
+}
+
+// ─────────────────────────────────────────────
+// 权限工具函数
+// ─────────────────────────────────────────────
+
+/** Admin / Manager 才能使用用户管理功能 */
+function canManageUsers(role: string) {
+  return role === 'Admin' || role === 'Manager';
+}
+
+/** 只有 Admin 可以修改 role 字段 */
+function canChangeRole(role: string) {
+  return role === 'Admin';
+}
+
+/**
+ * 当前用户是否能操作目标用户这一行
+ * - Admin 可操作 Manager & User（不可操作另一个 Admin）
+ * - Manager 只可操作 User
+ */
+function canOperateTarget(currentRole: string, targetRole: string) {
+  if (currentRole === 'Admin' && targetRole !== 'Admin') return true;
+  if (currentRole === 'Manager' && targetRole === 'User') return true;
+  return false;
+}
+
+// ─────────────────────────────────────────────
+// 子组件：UserDrawer（Add / Edit 共用）
+// ─────────────────────────────────────────────
+
+interface UserDrawerProps {
+  open: boolean;
+  mode: 'add' | 'edit';
+  initialData?: UserData | null;
+  currentUser: CurrentUser | null;
+  onClose: () => void;
+  onSubmit: () => void;
+}
+
+function UserDrawer({ open, mode, initialData, currentUser, onClose, onSubmit }: UserDrawerProps) {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    role: 'User',
+    status: 'Active',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const currentRole = currentUser?.role ?? '';
+  const allowRoleChange = canChangeRole(currentRole);
+
+  // Admin 可设置全部角色；Manager 只能设置 User
+  const availableRoles =
+    currentRole === 'Admin' ? ['Admin', 'Manager', 'User'] : ['User'];
+
+  useEffect(() => {
+    if (!open) return;
+    setError('');
+    if (mode === 'edit' && initialData) {
+      setFormData({
+        name: initialData.name ?? '',
+        email: initialData.email,
+        role: initialData.role,
+        status: initialData.status,
+      });
+    } else {
+      setFormData({ name: '', email: '', role: 'User', status: 'Active' });
+    }
+  }, [open, mode, initialData]);
+
+  const handleSubmit = async () => {
+    if (!formData.name.trim()) { setError('Name is required'); return; }
+    if (!formData.email.trim()) { setError('Email is required'); return; }
+
+    setLoading(true);
+    setError('');
+
+    const res =
+      mode === 'add'
+        ? await createUser(formData as CreateUserDTO)
+        : initialData
+        ? await updateUser({ id: initialData.id, ...formData })
+        : undefined;
+
+    setLoading(false);
+
+    if (res?.success) {
+      onSubmit();
+      onClose();
+    } else {
+      setError(res?.error ?? 'Operation failed');
+    }
+  };
+
+  return (
+    <Drawer
+      anchor="right"
+      open={open}
+      onClose={onClose}
+      PaperProps={{
+        sx: { width: { xs: '100%', sm: 420 }, p: 4, backgroundColor: '#faf9f6' },
+      }}
+    >
+      {/* 标题栏 */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+        <Typography variant="h5" sx={{ fontWeight: 800, color: '#5d4037' }}>
+          {mode === 'add' ? 'New User' : 'Edit User'}
+        </Typography>
+        <IconButton onClick={onClose} size="small">
+          <CloseIcon />
+        </IconButton>
+      </Box>
+
+      <Stack spacing={3}>
+        {/* 姓名 */}
+        <TextField
+          label="Full Name"
+          fullWidth
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          sx={{ '& .MuiOutlinedInput-root.Mui-focused fieldset': { borderColor: '#6d8c7d' } }}
+        />
+
+        {/* 邮箱（编辑模式禁用） */}
+        <TextField
+          label="Email Address"
+          fullWidth
+          type="email"
+          value={formData.email}
+          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          disabled={mode === 'edit'}
+          helperText={mode === 'edit' ? 'Email cannot be changed' : ''}
+          sx={{ '& .MuiOutlinedInput-root.Mui-focused fieldset': { borderColor: '#6d8c7d' } }}
+        />
+
+        {/* Role 选择 — 没有权限时锁定 */}
+        <FormControl fullWidth>
+          <InputLabel>Role</InputLabel>
+          {allowRoleChange ? (
+            <Select
+              value={formData.role}
+              label="Role"
+              // ✅ 修复：直接用 e.target.value as string，不依赖 SelectChangeEvent
+              onChange={(e) => setFormData({ ...formData, role: e.target.value as string })}
+            >
+              {availableRoles.map((r) => (
+                <MenuItem key={r} value={r}>{r}</MenuItem>
+              ))}
+            </Select>
+          ) : (
+            <Tooltip title="You don't have permission to change roles" placement="top">
+              <span>
+                <Select
+                  value={formData.role}
+                  label="Role"
+                  disabled
+                  endAdornment={
+                    <LockIcon sx={{ mr: 1, color: 'text.disabled', fontSize: 18 }} />
+                  }
+                >
+                  <MenuItem value={formData.role}>{formData.role}</MenuItem>
+                </Select>
+              </span>
+            </Tooltip>
+          )}
+        </FormControl>
+
+        {/* Status 选择 */}
+        <FormControl fullWidth>
+          <InputLabel>Status</InputLabel>
+          <Select
+            value={formData.status}
+            label="Status"
+            onChange={(e) => setFormData({ ...formData, status: e.target.value as string })}
+          >
+            <MenuItem value="Active">Active</MenuItem>
+            <MenuItem value="Disabled">Disabled</MenuItem>
+            <MenuItem value="Pending">Pending</MenuItem>
+          </Select>
+        </FormControl>
+
+        {/* 错误提示 */}
+        {error && (
+          <Alert severity="error" sx={{ borderRadius: 2 }}>
+            {error}
+          </Alert>
+        )}
+
+        {/* 操作按钮 */}
+        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 1 }}>
+          <Button
+            variant="outlined"
+            onClick={onClose}
+            sx={{
+              color: '#8d6e63',
+              borderColor: '#8d6e63',
+              borderRadius: '50px',
+              textTransform: 'none',
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSubmit}
+            disabled={loading}
+            sx={{
+              backgroundColor: '#6d8c7d',
+              borderRadius: '50px',
+              textTransform: 'none',
+              '&:hover': { backgroundColor: '#5a7568' },
+            }}
+          >
+            {loading ? 'Saving...' : mode === 'add' ? 'Create User' : 'Save Changes'}
+          </Button>
+        </Box>
+      </Stack>
+    </Drawer>
+  );
+}
+
+// ─────────────────────────────────────────────
+// 主页面
+// ─────────────────────────────────────────────
+
+export default function UsersPage() {
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [total, setTotal] = useState(0);
+  const [tableLoading, setTableLoading] = useState(true);
+
+  // 当前登录用户
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+
+  // 筛选 & 分页
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [searchName, setSearchName] = useState('');
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [allRoles, setAllRoles] = useState<string[]>([]);
+
+  // 多选
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  // 抽屉
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerMode, setDrawerMode] = useState<'add' | 'edit'>('add');
+  const [editTarget, setEditTarget] = useState<UserData | null>(null);
+
+  // 权限快捷标记
+  const currentRole = currentUser?.role ?? '';
+  const hasManagePermission = canManageUsers(currentRole);
+
+  // ── 数据加载 ──
+
+  const fetchCurrentUser = useCallback(async () => {
+    const res = await getCurrentUser();
+    if (res.success && res.data) {
+      setCurrentUser(res.data as CurrentUser);
+    }
+  }, []);
+
+  const fetchData = useCallback(async () => {
+    setTableLoading(true);
+    const res = await getUsers({
+      page: page + 1,
+      pageSize: rowsPerPage,
+      search: searchName,
+      roles: selectedRoles,
+    });
+    if (res.success) {
+      setUsers(res.data as UserData[]);
+      setTotal(res.total ?? 0);
+    }
+    setTableLoading(false);
+  }, [page, rowsPerPage, searchName, selectedRoles]);
+
+  const loadRoles = useCallback(async () => {
+    const roles = await getUserRoles();
+    setAllRoles(roles);
+  }, []);
+
+  // 初始化
+  useEffect(() => {
+    fetchCurrentUser();
+    loadRoles();
+  }, [fetchCurrentUser, loadRoles]);
+
+  // 搜索 / Role 筛选变动：防抖并重置到第一页
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(0);
+      fetchData();
+    }, 300);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchName, selectedRoles]);
+
+  // 分页变动
+  useEffect(() => {
+    fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, rowsPerPage]);
+
+  // ── 事件处理 ──
+
+  const handleOpenAdd = () => {
+    setDrawerMode('add');
+    setEditTarget(null);
+    setDrawerOpen(true);
+  };
+
+  const handleOpenEdit = (user: UserData) => {
+    setDrawerMode('edit');
+    setEditTarget(user);
+    setDrawerOpen(true);
+  };
+
+  const handleDeleteOne = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this user?')) return;
+    await deleteUser(id);
+    fetchData();
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${selectedIds.length} selected users?`)) return;
+    await deleteUsers(selectedIds);
+    setSelectedIds([]);
+    fetchData();
+  };
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSelectedIds(e.target.checked ? users.map((u) => u.id) : []);
+  };
+
+  const handleRowSelect = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]
+    );
+  };
+
+  // ── Chip 颜色辅助 ──
+  const getStatusColor = (status: string): 'success' | 'warning' | 'default' => {
+    if (status === 'Active') return 'success';
+    if (status === 'Pending') return 'warning';
+    return 'default';
+  };
+
+  const getRoleColor = (role: string): 'error' | 'primary' | 'default' => {
+    if (role === 'Admin') return 'error';
+    if (role === 'Manager') return 'primary';
+    return 'default';
+  };
+
+  // ─────────────────────────────────────────────
+  // 渲染
+  // ─────────────────────────────────────────────
+  return (
+    <Box>
+      {/* ── 页头 ── */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4, alignItems: 'flex-start' }}>
+        <Box>
+          <Typography
+            variant="h4"
+            sx={{ fontWeight: 800, color: '#5d4037', letterSpacing: '-0.5px' }}
+          >
+            User Management
+          </Typography>
+          {currentUser && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                Logged in as
+              </Typography>
+              <Chip
+                label={currentRole}
+                size="small"
+                color={getRoleColor(currentRole)}
+                sx={{ fontWeight: 700, fontSize: '0.7rem' }}
+              />
+              {!hasManagePermission && (
+                <Typography variant="body2" sx={{ color: '#e57373' }}>
+                  — View only
+                </Typography>
+              )}
+            </Box>
+          )}
+        </Box>
+
+        {/* ✅ 权限控制：只有 Admin / Manager 可见 Add 按钮 */}
+        {hasManagePermission && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleOpenAdd}
+            sx={{
+              backgroundColor: '#6d8c7d',
+              borderRadius: '50px',
+              textTransform: 'none',
+              fontWeight: 700,
+              '&:hover': { backgroundColor: '#5a7568' },
+            }}
+          >
+            Add New User
+          </Button>
+        )}
+      </Box>
+
+      {/* ── Filter Bar ── */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 3,
+          mb: 4,
+          borderRadius: '24px',
+          backgroundColor: 'rgba(255, 253, 245, 0.6)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(139, 115, 85, 0.1)',
+          display: 'flex',
+          gap: 2,
+          alignItems: 'center',
+          flexWrap: 'wrap',
+        }}
+      >
+        {/* 搜索框 */}
+        <TextField
+          placeholder="Search name or email..."
+          size="small"
+          value={searchName}
+          onChange={(e) => setSearchName(e.target.value)}
+          sx={{
+            flexGrow: 1,
+            maxWidth: 400,
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '50px',
+              backgroundColor: '#fff',
+              '& fieldset': { borderColor: 'rgba(141, 110, 99, 0.2)' },
+              '&:hover fieldset': { borderColor: '#6d8c7d' },
+              '&.Mui-focused fieldset': { borderColor: '#6d8c7d' },
+            },
+          }}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ color: '#8d6e63' }} />
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+
+        {/* Role 多选筛选 */}
+        <FormControl size="small" sx={{ minWidth: 220 }}>
+          <InputLabel sx={{ color: '#8d6e63' }}>Filter by Role</InputLabel>
+          <Select
+            multiple
+            value={selectedRoles}
+            // ✅ 修复：不使用 SelectChangeEvent，直接处理联合类型
+            onChange={(e) => {
+              const val = e.target.value;
+              setSelectedRoles(typeof val === 'string' ? val.split(',') : (val as string[]));
+            }}
+            input={<OutlinedInput label="Filter by Role" />}
+            renderValue={(selected) => (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                {(selected as string[]).map((v) => (
+                  <Chip key={v} label={v} size="small" sx={{ backgroundColor: '#e0dbd6' }} />
+                ))}
+              </Box>
+            )}
+            sx={{
+              borderRadius: '50px',
+              backgroundColor: '#fff',
+              '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(141, 110, 99, 0.2)' },
+              '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#6d8c7d' },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#6d8c7d' },
+            }}
+          >
+            {allRoles.map((role) => (
+              <MenuItem key={role} value={role}>
+                {role}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        {/* ✅ 权限控制：批量删除按钮 */}
+        {hasManagePermission && selectedIds.length > 0 && (
+          <Button
+            variant="contained"
+            color="error"
+            startIcon={<DeleteIcon />}
+            onClick={handleBulkDelete}
+            sx={{ borderRadius: '50px', ml: 'auto', fontWeight: 700, textTransform: 'none' }}
+          >
+            Delete ({selectedIds.length})
+          </Button>
+        )}
+      </Paper>
+
+      {/* ── Table ── */}
+      <Paper
+        elevation={0}
+        sx={{
+          borderRadius: '24px',
+          overflow: 'hidden',
+          backgroundColor: '#fff',
+          boxShadow: '0 4px 20px rgba(139, 115, 85, 0.05)',
+        }}
+      >
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow sx={{ backgroundColor: 'rgba(249, 246, 240, 0.8)' }}>
+                {/* ✅ 权限控制：只有有权限的用户显示全选框列 */}
+                {hasManagePermission && (
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      indeterminate={
+                        selectedIds.length > 0 && selectedIds.length < users.length
+                      }
+                      checked={users.length > 0 && selectedIds.length === users.length}
+                      onChange={handleSelectAll}
+                      sx={{ color: '#8d6e63', '&.Mui-checked': { color: '#6d8c7d' } }}
+                    />
+                  </TableCell>
+                )}
+                {['Name', 'Email', 'Role', 'Status', ...(hasManagePermission ? ['Actions'] : [])].map(
+                  (h) => (
+                    <TableCell
+                      key={h}
+                      sx={{
+                        fontWeight: 700,
+                        color: '#8d6e63',
+                        fontSize: '0.8rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      {h}
+                    </TableCell>
+                  )
+                )}
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {/* 骨架屏 */}
+              {tableLoading &&
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    {hasManagePermission && (
+                      <TableCell padding="checkbox">
+                        <Skeleton variant="rectangular" width={18} height={18} />
+                      </TableCell>
+                    )}
+                    {[160, 200, 80, 80, ...(hasManagePermission ? [80] : [])].map((w, j) => (
+                      <TableCell key={j}>
+                        <Skeleton variant="text" width={w} />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+
+              {/* 数据行 */}
+              {!tableLoading &&
+                users.map((user) => {
+                  const isSelected = selectedIds.includes(user.id);
+                  const canOperate = canOperateTarget(currentRole, user.role);
+
+                  return (
+                    <TableRow
+                      key={user.id}
+                      hover
+                      selected={isSelected}
+                      onClick={
+                        hasManagePermission ? () => handleRowSelect(user.id) : undefined
+                      }
+                      sx={{
+                        cursor: hasManagePermission ? 'pointer' : 'default',
+                        '&.Mui-selected': {
+                          backgroundColor: 'rgba(109, 140, 125, 0.08)',
+                        },
+                        '&.Mui-selected:hover': {
+                          backgroundColor: 'rgba(109, 140, 125, 0.12)',
+                        },
+                      }}
+                    >
+                      {/* 行勾选框 */}
+                      {hasManagePermission && (
+                        <TableCell padding="checkbox">
+                          <Checkbox
+                            checked={isSelected}
+                            disabled={!canOperate}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleRowSelect(user.id);
+                            }}
+                            sx={{
+                              color: '#8d6e63',
+                              '&.Mui-checked': { color: '#6d8c7d' },
+                            }}
+                          />
+                        </TableCell>
+                      )}
+
+                      {/* Name */}
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#3d2b1f' }}>
+                          {user.name ?? '—'}
+                        </Typography>
+                      </TableCell>
+
+                      {/* Email */}
+                      <TableCell>
+                        <Typography variant="body2" sx={{ color: '#6b5a4e' }}>
+                          {user.email}
+                        </Typography>
+                      </TableCell>
+
+                      {/* Role */}
+                      <TableCell>
+                        <Chip
+                          label={user.role}
+                          size="small"
+                          color={getRoleColor(user.role)}
+                          variant="outlined"
+                          sx={{ fontWeight: 600, fontSize: '0.72rem' }}
+                        />
+                      </TableCell>
+
+                      {/* Status */}
+                      <TableCell>
+                        <Chip
+                          label={user.status}
+                          size="small"
+                          color={getStatusColor(user.status)}
+                          sx={{ fontWeight: 600, fontSize: '0.72rem' }}
+                        />
+                      </TableCell>
+
+                      {/* ✅ 权限控制：Actions 列 */}
+                      {hasManagePermission && (
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Box sx={{ display: 'flex', gap: 0.5 }}>
+                            {/* 编辑 */}
+                            <Tooltip
+                              title={
+                                !canOperate
+                                  ? currentRole === 'Manager'
+                                    ? 'Managers can only edit User-level accounts'
+                                    : 'Cannot edit other Admins'
+                                  : 'Edit user'
+                              }
+                            >
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  disabled={!canOperate}
+                                  onClick={() => handleOpenEdit(user)}
+                                  sx={{
+                                    color: '#6d8c7d',
+                                    '&:hover': { backgroundColor: 'rgba(109, 140, 125, 0.1)' },
+                                    '&.Mui-disabled': { color: 'rgba(0,0,0,0.2)' },
+                                  }}
+                                >
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+
+                            {/* 删除 */}
+                            <Tooltip
+                              title={
+                                !canOperate
+                                  ? currentRole === 'Manager'
+                                    ? 'Managers can only delete User-level accounts'
+                                    : 'Cannot delete other Admins'
+                                  : 'Delete user'
+                              }
+                            >
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  disabled={!canOperate}
+                                  onClick={() => handleDeleteOne(user.id)}
+                                  sx={{
+                                    color: '#e57373',
+                                    '&:hover': { backgroundColor: 'rgba(229, 115, 115, 0.1)' },
+                                    '&.Mui-disabled': { color: 'rgba(0,0,0,0.2)' },
+                                  }}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          </Box>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })}
+
+              {/* 无数据 */}
+              {!tableLoading && users.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={hasManagePermission ? 6 : 4}
+                    align="center"
+                    sx={{ py: 8 }}
+                  >
+                    <Typography variant="body1" sx={{ color: '#bdbdbd' }}>
+                      No users found
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <TablePagination
+          component="div"
+          count={total}
+          page={page}
+          rowsPerPage={rowsPerPage}
+          onPageChange={(_, newPage) => setPage(newPage)}
+          onRowsPerPageChange={(e) => {
+            setRowsPerPage(parseInt(e.target.value, 10));
+            setPage(0);
+          }}
+          rowsPerPageOptions={[5, 10, 25, 50]}
+          sx={{ borderTop: '1px dashed rgba(145, 158, 171, 0.2)' }}
+        />
+      </Paper>
+
+      {/* ── 抽屉 ── */}
+      <UserDrawer
+        open={drawerOpen}
+        mode={drawerMode}
+        initialData={editTarget}
+        currentUser={currentUser}
+        onClose={() => setDrawerOpen(false)}
+        onSubmit={fetchData}
+      />
+    </Box>
+  );
+}
+</file>
+
+<file path="src/app/actions/user.ts">
+'use server';
+
+import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
+import { getCurrentUser } from './auth'; // 👉 引入获取当前用户的逻辑
+
+// --- 类型定义 (保持不变) ---
+export interface UserFilter { search?: string; roles?: string[]; page?: number; pageSize?: number; }
+export interface CreateUserDTO { name: string; email: string; role: string; status: string; password?: string; }
+export interface UpdateUserDTO { id: number; name?: string; email?: string; role?: string; status?: string; }
+
+// 👉 新增：核心服务端权限校验函数
+async function checkPermission(targetRole?: string) {
+  const auth = await getCurrentUser();
+  if (!auth.success || !auth.data) return { allowed: false, error: "用户未登录" };
+
+  const role = auth.data.role;
+
+  // 1. User 级别没有任何后台管理权限
+  if (role === 'User') return { allowed: false, error: "无权限进行此操作" };
+
+  // 2. 如果存在目标角色（针对编辑、删除等操作）
+  if (targetRole) {
+    if (role === 'Manager' && targetRole !== 'User') {
+      return { allowed: false, error: "越权操作：Manager 只能管理 User" };
+    }
+    if (role === 'Admin' && targetRole === 'Admin') {
+      return { allowed: false, error: "无法在表格中操作其他 Admin，请使用个人资料页" };
+    }
+  }
+
+  return { allowed: true, currentUser: auth.data };
+}
+
+// --- 1. 获取用户列表 (保持不变) ---
+export async function getUsers(filter: UserFilter) {
+  try {
+    const { search, roles, page = 1, pageSize = 10 } = filter;
+    const where: Prisma.UserWhereInput = {};
+
+    if (search) where.OR = [{ name: { contains: search } }, { email: { contains: search } }];
+    if (roles && roles.length > 0) where.role = { in: roles };
+
+    const total = await prisma.user.count({ where });
+    const users = await prisma.user.findMany({
+      where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * pageSize, take: pageSize,
+    });
+
+    return { success: true, data: users, total };
+  } catch (error) {
+    return { success: false, data: [], total: 0 };
+  }
+}
+
+// --- 2. 创建用户 (加入鉴权) ---
+export async function createUser(data: CreateUserDTO) {
+  try {
+    // 校验是否有创建权限
+    const perm = await checkPermission();
+    if (!perm.allowed) return { success: false, error: perm.error };
+
+    // Manager 不能创建 Admin 或 Manager
+    if (perm.currentUser?.role === 'Manager' && data.role !== 'User') {
+        return { success: false, error: "Manager 只能创建 User 级别的账号" };
+    }
+
+    await prisma.user.create({
+      data: {
+        name: data.name, email: data.email, role: data.role, status: data.status,
+        password: data.password || '123456',
+      },
+    });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: "创建失败，邮箱可能已存在" };
+  }
+}
+
+// --- 3. 更新用户 (加入鉴权) ---
+export async function updateUser(data: UpdateUserDTO) {
+  try {
+    const targetUser = await prisma.user.findUnique({ where: { id: data.id } });
+    if (!targetUser) return { success: false, error: "目标用户不存在" };
+
+    const perm = await checkPermission(targetUser.role);
+    if (!perm.allowed) return { success: false, error: perm.error };
+
+    // Manager 试图在修改时篡改角色
+    if (perm.currentUser?.role === 'Manager' && data.role && data.role !== 'User') {
+        return { success: false, error: "Manager 无权分配非 User 角色" };
+    }
+
+    const { id, ...rest } = data;
+    await prisma.user.update({ where: { id }, data: rest });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: "更新失败" };
+  }
+}
+
+// --- 4. 删除单个用户 (加入鉴权) ---
+export async function deleteUser(id: number) {
+  try {
+    const targetUser = await prisma.user.findUnique({ where: { id } });
+    if (!targetUser) return { success: false, error: "目标用户不存在" };
+
+    const perm = await checkPermission(targetUser.role);
+    if (!perm.allowed) return { success: false, error: perm.error };
+
+    await prisma.user.delete({ where: { id } });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: "删除失败" };
+  }
+}
+
+// --- 5. 批量删除用户 (加入鉴权) ---
+export async function deleteUsers(ids: number[]) {
+  try {
+    // 批量查出要删除的用户，确保其中没有越权目标
+    const targets = await prisma.user.findMany({ where: { id: { in: ids } } });
+    
+    for (const target of targets) {
+        const perm = await checkPermission(target.role);
+        if (!perm.allowed) return { success: false, error: `批量删除包含越权目标: ${perm.error}` };
+    }
+
+    await prisma.user.deleteMany({ where: { id: { in: ids } } });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: "批量删除失败" };
+  }
+}
+
+// --- 6. 获取现有角色列表 (保持不变) ---
+export async function getUserRoles() {
+  try {
+    const groups = await prisma.user.groupBy({ by: ['role'], orderBy: { role: 'asc' } });
+    return groups.map(g => g.role);
+  } catch (error) {
+    return [];
+  }
+}
+</file>
+
+<file path="src/app/page.module.css">
+.page {
+  --background: #fafafa;
+  --foreground: #fff;
+
+  --text-primary: #000;
+  --text-secondary: #666;
+
+  --button-primary-hover: #383838;
+  --button-secondary-hover: #f2f2f2;
+  --button-secondary-border: #ebebeb;
+
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-geist-sans);
+  background-color: var(--background);
+}
+
+.main {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  max-width: 800px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  background-color: var(--foreground);
+  padding: 120px 60px;
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 24px;
+}
+
+.intro h1 {
+  max-width: 320px;
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 48px;
+  letter-spacing: -2.4px;
+  text-wrap: balance;
+  color: var(--text-primary);
+}
+
+.intro p {
+  max-width: 440px;
+  font-size: 18px;
+  line-height: 32px;
+  text-wrap: balance;
+  color: var(--text-secondary);
+}
+
+.intro a {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.ctas {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  max-width: 440px;
+  gap: 16px;
+  font-size: 14px;
+}
+
+.ctas a {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 128px;
+  border: 1px solid transparent;
+  transition: 0.2s;
+  cursor: pointer;
+  width: fit-content;
+  font-weight: 500;
+}
+
+a.primary {
+  background: var(--text-primary);
+  color: var(--background);
+  gap: 8px;
+}
+
+a.secondary {
+  border-color: var(--button-secondary-border);
+}
+
+/* Enable hover only on non-touch devices */
+@media (hover: hover) and (pointer: fine) {
+  a.primary:hover {
+    background: var(--button-primary-hover);
+    border-color: transparent;
+  }
+
+  a.secondary:hover {
+    background: var(--button-secondary-hover);
+    border-color: transparent;
+  }
+}
+
+@media (max-width: 600px) {
+  .main {
+    padding: 48px 24px;
+  }
+
+  .intro {
+    gap: 16px;
+  }
+
+  .intro h1 {
+    font-size: 32px;
+    line-height: 40px;
+    letter-spacing: -1.92px;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .logo {
+    filter: invert();
+  }
+
+  .page {
+    --background: #000;
+    --foreground: #000;
+
+    --text-primary: #ededed;
+    --text-secondary: #999;
+
+    --button-primary-hover: #ccc;
+    --button-secondary-hover: #1a1a1a;
+    --button-secondary-border: #1a1a1a;
+  }
+}
+</file>
 
 <file path="src/components/CompanyBubbleChart.tsx">
 'use client';
@@ -374,6 +2035,367 @@ export default function CompanyBubbleChart({ filters }: CompanyBubbleChartProps)
 }
 </file>
 
+<file path="src/components/Navbar.tsx">
+'use client';
+
+import * as React from 'react';
+import { 
+  AppBar, 
+  Box, 
+  Toolbar, 
+  IconButton, 
+  Typography, 
+  Menu, 
+  Container, 
+  Avatar, 
+  Button, 
+  Tooltip, 
+  MenuItem 
+} from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
+import AdbIcon from '@mui/icons-material/Adb'; // 你可以换成自己的 Logo 图标
+import { useRouter } from 'next/navigation';
+
+// 定义导航菜单项
+const pages = [
+  { name: '仪表盘', path: '/dashboard' },
+  { name: '项目案例', path: '/projects' },
+  { name: '技术博客', path: '/blog' }
+];
+
+// 定义用户头像下拉菜单
+const settings = ['个人资料', '账号设置', '退出登录'];
+
+export default function Navbar() {
+  const router = useRouter();
+  const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(null);
+  const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(null);
+
+  const handleOpenNavMenu = (event: React.MouseEvent<HTMLElement>) => setAnchorElNav(event.currentTarget);
+  const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => setAnchorElUser(event.currentTarget);
+  const handleCloseNavMenu = () => setAnchorElNav(null);
+  const handleCloseUserMenu = () => setAnchorElUser(null);
+
+  return (
+    <AppBar position="sticky" elevation={1}>
+      <Container maxWidth="xl">
+        <Toolbar disableGutters>
+          {/* --- 桌面端 Logo --- */}
+          <AdbIcon sx={{ display: { xs: 'none', md: 'flex' }, mr: 1 }} />
+          <Typography
+            variant="h6"
+            noWrap
+            component="a"
+            href="/"
+            sx={{
+              mr: 2,
+              display: { xs: 'none', md: 'flex' },
+              fontWeight: 700,
+              letterSpacing: '.1rem',
+              color: 'inherit',
+              textDecoration: 'none',
+            }}
+          >
+            RICHARD_SYSTEM
+          </Typography>
+
+          {/* --- 移动端菜单按钮 --- */}
+          <Box sx={{ flexGrow: 1, display: { xs: 'flex', md: 'none' } }}>
+            <IconButton size="large" onClick={handleOpenNavMenu} color="inherit">
+              <MenuIcon />
+            </IconButton>
+            <Menu
+              anchorEl={anchorElNav}
+              open={Boolean(anchorElNav)}
+              onClose={handleCloseNavMenu}
+              sx={{ display: { xs: 'block', md: 'none' } }}
+            >
+              {pages.map((page) => (
+                <MenuItem key={page.name} onClick={() => { handleCloseNavMenu(); router.push(page.path); }}>
+                  <Typography textAlign="center">{page.name}</Typography>
+                </MenuItem>
+              ))}
+            </Menu>
+          </Box>
+
+          {/* --- 桌面端导航链接 --- */}
+          <AdbIcon sx={{ display: { xs: 'flex', md: 'none' }, mr: 1 }} />
+          <Typography
+            variant="h5"
+            noWrap
+            component="a"
+            href=""
+            sx={{
+              mr: 2,
+              display: { xs: 'flex', md: 'none' },
+              flexGrow: 1,
+              fontWeight: 700,
+              color: 'inherit',
+              textDecoration: 'none',
+            }}
+          >
+            LOGO
+          </Typography>
+          <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>
+            {pages.map((page) => (
+              <Button
+                key={page.name}
+                onClick={() => router.push(page.path)}
+                sx={{ my: 2, color: 'white', display: 'block' }}
+              >
+                {page.name}
+              </Button>
+            ))}
+          </Box>
+
+          {/* --- 用户个人中心 (右侧) --- */}
+          <Box sx={{ flexGrow: 0 }}>
+            <Tooltip title="打开设置">
+              <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
+                {/* 这里的文字可以改成你的名字缩写 CZ */}
+                <Avatar alt="Chen Zhe" src="/static/images/avatar/2.jpg" />
+              </IconButton>
+            </Tooltip>
+            <Menu
+              sx={{ mt: '45px' }}
+              anchorEl={anchorElUser}
+              open={Boolean(anchorElUser)}
+              onClose={handleCloseUserMenu}
+            >
+              {settings.map((setting) => (
+                <MenuItem key={setting} onClick={handleCloseUserMenu}>
+                  <Typography textAlign="center">{setting}</Typography>
+                </MenuItem>
+              ))}
+            </Menu>
+          </Box>
+        </Toolbar>
+      </Container>
+    </AppBar>
+  );
+}
+</file>
+
+<file path="src/components/Topbar.tsx">
+// src/components/Topbar.tsx
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import {
+  AppBar, Toolbar, Box, IconButton, Avatar, Typography, 
+  Drawer, Stack, Button, Divider, Badge, Skeleton
+} from '@mui/material';
+import {
+  Notifications as NotificationsIcon,
+  Logout as LogoutIcon,
+  Settings as SettingsIcon,
+  Close as CloseIcon
+} from '@mui/icons-material';
+import { logout, getCurrentUser } from '@/app/actions/auth';
+import { useRouter } from 'next/navigation';
+
+export default function TopBar() {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const [user, setUser] = useState({
+    name: '',
+    email: '',
+    role: '',
+    phone: '',
+    avatarUrl: ''
+  });
+
+  // 组件挂载时获取当前真实登录用户数据
+  useEffect(() => {
+    const fetchUser = async () => {
+      const res = await getCurrentUser();
+      if (res.success && res.data) {
+        setUser({
+          name: res.data.name || '未知用户',
+          email: res.data.email || '',
+          role: res.data.role || 'User',
+          phone: res.data.phone || '未填写',
+          avatarUrl: res.data.avatarUrl || ''
+        });
+      }
+      setLoading(false);
+    };
+    fetchUser();
+  }, []);
+
+  // 处理注销
+  const handleLogout = async () => {
+    await logout();
+  };
+
+  // 提取首字母作为默认头像
+  const avatarChar = user.name ? user.name.charAt(0).toUpperCase() : 'U';
+
+  return (
+    <>
+      {/* --- 顶栏 (AppBar) --- */}
+      <AppBar 
+        position="sticky" 
+        elevation={0}
+        sx={{
+          backgroundColor: 'rgba(255, 253, 245, 0.8)',
+          backdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(139, 115, 85, 0.1)',
+          color: '#5d4037'
+        }}
+      >
+        <Toolbar sx={{ justifyContent: 'flex-end', gap: 2 }}>
+          
+          <IconButton size="small">
+            <Badge variant="dot" color="error">
+              <NotificationsIcon sx={{ color: '#8d6e63' }} />
+            </Badge>
+          </IconButton>
+
+          {/* 头像区域 (点击触发抽屉) */}
+          <Box 
+            onClick={() => setOpen(true)}
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 1.5, 
+              cursor: 'pointer',
+              padding: '4px 12px',
+              borderRadius: '50px',
+              transition: '0.2s',
+              '&:hover': { backgroundColor: 'rgba(109, 140, 125, 0.1)' }
+            }}
+          >
+            {loading ? (
+              <Skeleton variant="text" width={60} height={24} sx={{ display: { xs: 'none', sm: 'block' } }} />
+            ) : (
+              <Typography variant="body2" sx={{ fontWeight: 600, display: { xs: 'none', sm: 'block' } }}>
+                {user.name}
+              </Typography>
+            )}
+            
+            {loading ? (
+              <Skeleton variant="circular" width={36} height={36} />
+            ) : (
+              <Avatar 
+                sx={{ bgcolor: '#6d8c7d', width: 36, height: 36, fontSize: '0.9rem' }}
+                src={user.avatarUrl}
+              >
+                {avatarChar}
+              </Avatar>
+            )}
+          </Box>
+        </Toolbar>
+      </AppBar>
+
+      {/* --- 个人信息抽屉 (Profile Drawer) --- */}
+      <Drawer
+        anchor="right"
+        open={open}
+        onClose={() => setOpen(false)}
+        PaperProps={{
+          sx: { width: 320, p: 3, backgroundColor: '#faf9f6' }
+        }}
+      >
+        {/* 抽屉头部 */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: '#5d4037' }}>
+            个人资料
+          </Typography>
+          <IconButton onClick={() => setOpen(false)} size="small">
+            <CloseIcon />
+          </IconButton>
+        </Box>
+
+        {/* 个人信息卡片区域 */}
+        <Stack spacing={3} sx={{ flexGrow: 1 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, mb: 2 }}>
+            {loading ? (
+              <Skeleton variant="circular" width={80} height={80} />
+            ) : (
+              <Avatar 
+                sx={{ width: 80, height: 80, bgcolor: '#6d8c7d', fontSize: '2rem', boxShadow: '0 8px 24px rgba(109, 140, 125, 0.2)' }}
+                src={user.avatarUrl}
+              >
+                {avatarChar}
+              </Avatar>
+            )}
+            
+            <Box sx={{ textAlign: 'center' }}>
+              {loading ? (
+                <>
+                  <Skeleton variant="text" width={100} height={32} sx={{ mx: 'auto' }} />
+                  <Skeleton variant="text" width={60} height={20} sx={{ mx: 'auto' }} />
+                </>
+              ) : (
+                <>
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#5d4037' }}>
+                    {user.name}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#8d6e63', fontWeight: 500 }}>
+                    {user.role}
+                  </Typography>
+                </>
+              )}
+            </Box>
+          </Box>
+
+          <Divider sx={{ borderColor: 'rgba(139, 115, 85, 0.2)' }} />
+
+          {/* 详细信息列表 */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box>
+              <Typography variant="caption" sx={{ color: '#8d6e63', mb: 0.5, display: 'block' }}>登录邮箱</Typography>
+              {loading ? <Skeleton variant="text" width="80%" /> : <Typography variant="body2" sx={{ fontWeight: 500, color: '#4e342e' }}>{user.email}</Typography>}
+            </Box>
+            <Box>
+              <Typography variant="caption" sx={{ color: '#8d6e63', mb: 0.5, display: 'block' }}>联系电话</Typography>
+              {loading ? <Skeleton variant="text" width="50%" /> : <Typography variant="body2" sx={{ fontWeight: 500, color: '#4e342e' }}>{user.phone}</Typography>}
+            </Box>
+          </Box>
+        </Stack>
+
+        {/* 底部按钮区域 */}
+        <Stack spacing={2} sx={{ mt: 4 }}>
+          <Button 
+            variant="outlined" 
+            startIcon={<SettingsIcon />}
+            onClick={() => {
+                setOpen(false); // 关闭抽屉
+                router.push('/account'); // 跳转到个人资料页
+            }}
+            sx={{ 
+              color: '#5d4037', 
+              borderColor: 'rgba(139, 115, 85, 0.3)',
+              borderRadius: '12px',
+              '&:hover': { borderColor: '#5d4037', backgroundColor: 'rgba(93, 64, 55, 0.04)' }
+            }}
+          >
+            账号设置
+          </Button>
+
+          <Button 
+            variant="contained" 
+            color="error" 
+            startIcon={<LogoutIcon />}
+            onClick={handleLogout}
+            sx={{ 
+              borderRadius: '12px', 
+              backgroundColor: '#ff8a65',
+              boxShadow: 'none',
+              '&:hover': { backgroundColor: '#ff7043', boxShadow: '0 4px 12px rgba(255, 138, 101, 0.3)' }
+            }}
+          >
+            安全退出
+          </Button>
+        </Stack>
+      </Drawer>
+    </>
+  );
+}
+</file>
+
 <file path="src/data/dummyHierarchy.ts">
 // src/data/dummyHierarchy.ts
 
@@ -528,837 +2550,243 @@ export const clearBubbleChartCache = () => {
 };
 </file>
 
-<file path="prisma/migrations/20260109183014_init_v6/migration.sql">
--- CreateTable
-CREATE TABLE `User` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `email` VARCHAR(191) NOT NULL,
-    `password` VARCHAR(191) NOT NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+<file path="src/lib/prisma.ts">
+// src/lib/prisma.ts
+import { PrismaClient } from '@prisma/client';
 
-    UNIQUE INDEX `User_email_key`(`email`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+const globalForPrisma = global as unknown as { prisma: PrismaClient };
+
+// Prisma 6 实例化不需要传任何参数，它会自动读 .env
+export const prisma = globalForPrisma.prisma || new PrismaClient();
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 </file>
 
-<file path="prisma/migrations/migration_lock.toml">
-# Please do not edit this file manually
-# It should be added in your version-control system (e.g., Git)
-provider = "mysql"
+<file path="src/theme.ts">
+// src/theme.ts
+'use client'; // 必须有这一行，否则会触发图 1 的 Functions cannot be passed 错误
+
+import { createTheme } from '@mui/material/styles';
+
+const theme = createTheme({
+  palette: {
+    mode: 'light',
+    primary: { main: '#1976d2' },
+  },
+  typography: {
+    fontFamily: 'var(--font-roboto), Arial, sans-serif',
+  },
+});
+
+export default theme;
 </file>
 
-<file path="public/file.svg">
-<svg fill="none" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 13.5V5.41a1 1 0 0 0-.3-.7L9.8.29A1 1 0 0 0 9.08 0H1.5v13.5A2.5 2.5 0 0 0 4 16h8a2.5 2.5 0 0 0 2.5-2.5m-1.5 0v-7H8v-5H3v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1M9.5 5V2.12L12.38 5zM5.13 5h-.62v1.25h2.12V5zm-.62 3h7.12v1.25H4.5zm.62 3h-.62v1.25h7.12V11z" clip-rule="evenodd" fill="#666" fill-rule="evenodd"/></svg>
+<file path="eslint.config.mjs">
+import { defineConfig, globalIgnores } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+  ]),
+]);
+
+export default eslintConfig;
 </file>
 
-<file path="public/globe.svg">
-<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><g clip-path="url(#a)"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.27 14.1a6.5 6.5 0 0 0 3.67-3.45q-1.24.21-2.7.34-.31 1.83-.97 3.1M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.48-1.52a7 7 0 0 1-.96 0H7.5a4 4 0 0 1-.84-1.32q-.38-.89-.63-2.08a40 40 0 0 0 3.92 0q-.25 1.2-.63 2.08a4 4 0 0 1-.84 1.31zm2.94-4.76q1.66-.15 2.95-.43a7 7 0 0 0 0-2.58q-1.3-.27-2.95-.43a18 18 0 0 1 0 3.44m-1.27-3.54a17 17 0 0 1 0 3.64 39 39 0 0 1-4.3 0 17 17 0 0 1 0-3.64 39 39 0 0 1 4.3 0m1.1-1.17q1.45.13 2.69.34a6.5 6.5 0 0 0-3.67-3.44q.65 1.26.98 3.1M8.48 1.5l.01.02q.41.37.84 1.31.38.89.63 2.08a40 40 0 0 0-3.92 0q.25-1.2.63-2.08a4 4 0 0 1 .85-1.32 7 7 0 0 1 .96 0m-2.75.4a6.5 6.5 0 0 0-3.67 3.44 29 29 0 0 1 2.7-.34q.31-1.83.97-3.1M4.58 6.28q-1.66.16-2.95.43a7 7 0 0 0 0 2.58q1.3.27 2.95.43a18 18 0 0 1 0-3.44m.17 4.71q-1.45-.12-2.69-.34a6.5 6.5 0 0 0 3.67 3.44q-.65-1.27-.98-3.1" fill="#666"/></g><defs><clipPath id="a"><path fill="#fff" d="M0 0h16v16H0z"/></clipPath></defs></svg>
+<file path="next.config.ts">
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  /* config options here */
+};
+
+export default nextConfig;
 </file>
 
-<file path="public/next.svg">
-<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 394 80"><path fill="#000" d="M262 0h68.5v12.7h-27.2v66.6h-13.6V12.7H262V0ZM149 0v12.7H94v20.4h44.3v12.6H94v21h55v12.6H80.5V0h68.7zm34.3 0h-17.8l63.8 79.4h17.9l-32-39.7 32-39.6h-17.9l-23 28.6-23-28.6zm18.3 56.7-9-11-27.1 33.7h17.8l18.3-22.7z"/><path fill="#000" d="M81 79.3 17 0H0v79.3h13.6V17l50.2 62.3H81Zm252.6-.4c-1 0-1.8-.4-2.5-1s-1.1-1.6-1.1-2.6.3-1.8 1-2.5 1.6-1 2.6-1 1.8.3 2.5 1a3.4 3.4 0 0 1 .6 4.3 3.7 3.7 0 0 1-3 1.8zm23.2-33.5h6v23.3c0 2.1-.4 4-1.3 5.5a9.1 9.1 0 0 1-3.8 3.5c-1.6.8-3.5 1.3-5.7 1.3-2 0-3.7-.4-5.3-1s-2.8-1.8-3.7-3.2c-.9-1.3-1.4-3-1.4-5h6c.1.8.3 1.6.7 2.2s1 1.2 1.6 1.5c.7.4 1.5.5 2.4.5 1 0 1.8-.2 2.4-.6a4 4 0 0 0 1.6-1.8c.3-.8.5-1.8.5-3V45.5zm30.9 9.1a4.4 4.4 0 0 0-2-3.3 7.5 7.5 0 0 0-4.3-1.1c-1.3 0-2.4.2-3.3.5-.9.4-1.6 1-2 1.6a3.5 3.5 0 0 0-.3 4c.3.5.7.9 1.3 1.2l1.8 1 2 .5 3.2.8c1.3.3 2.5.7 3.7 1.2a13 13 0 0 1 3.2 1.8 8.1 8.1 0 0 1 3 6.5c0 2-.5 3.7-1.5 5.1a10 10 0 0 1-4.4 3.5c-1.8.8-4.1 1.2-6.8 1.2-2.6 0-4.9-.4-6.8-1.2-2-.8-3.4-2-4.5-3.5a10 10 0 0 1-1.7-5.6h6a5 5 0 0 0 3.5 4.6c1 .4 2.2.6 3.4.6 1.3 0 2.5-.2 3.5-.6 1-.4 1.8-1 2.4-1.7a4 4 0 0 0 .8-2.4c0-.9-.2-1.6-.7-2.2a11 11 0 0 0-2.1-1.4l-3.2-1-3.8-1c-2.8-.7-5-1.7-6.6-3.2a7.2 7.2 0 0 1-2.4-5.7 8 8 0 0 1 1.7-5 10 10 0 0 1 4.3-3.5c2-.8 4-1.2 6.4-1.2 2.3 0 4.4.4 6.2 1.2 1.8.8 3.2 2 4.3 3.4 1 1.4 1.5 3 1.5 5h-5.8z"/></svg>
+<file path="pnpm-workspace.yaml">
+packages:
+  - .
+ignoredBuiltDependencies:
+  - sharp
+  - unrs-resolver
 </file>
 
-<file path="public/vercel.svg">
-<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1155 1000"><path d="m577.3 0 577.4 1000H0z" fill="#fff"/></svg>
+<file path="README.md">
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+
+## Getting Started
+
+First, run the development server:
+
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 </file>
 
-<file path="public/window.svg">
-<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M1.5 2.5h13v10a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1zM0 1h16v11.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 0 12.5zm3.75 4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5M7 4.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0m1.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5" fill="#666"/></svg>
+<file path="SSH.pub">
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBJbQQZLOlyd8l+l44BxLQbdCBxqV5A/7+jkJK26s8Zr zcemulate@gmail.com
 </file>
 
-<file path="src/app/(main)/users/page.tsx">
-'use client';
-
-import React, { useState, useEffect } from 'react';
-import {
-  Box, Paper, Typography, TextField, Button, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, TablePagination, Checkbox,
-  IconButton, Chip, Drawer, MenuItem, InputAdornment, Stack,
-  Select, InputLabel, FormControl, OutlinedInput, SelectChangeEvent
-} from '@mui/material';
-import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Search as SearchIcon,
-  Close as CloseIcon
-} from '@mui/icons-material';
-import { 
-  getUsers, deleteUser, deleteUsers, getUserRoles, 
-  createUser, updateUser, type CreateUserDTO 
-} from '@/app/actions/user';
-
-// --- 类型定义 ---
-interface UserData {
-  id: number;
-  name: string | null;
-  email: string;
-  role: string;
-  status: string;
-}
-
-// --- 子组件：用户表单抽屉 (Add/Edit 共用) ---
-interface UserDrawerProps {
-  open: boolean;
-  mode: 'add' | 'edit';
-  initialData?: UserData | null;
-  onClose: () => void;
-  onSubmit: () => void;
-}
-
-function UserDrawer({ open, mode, initialData, onClose, onSubmit }: UserDrawerProps) {
-  // 表单状态
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    role: 'User',
-    status: 'Active'
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  // 当打开或模式改变时，重置表单
-  useEffect(() => {
-    if (open) {
-      setError('');
-      if (mode === 'edit' && initialData) {
-        setFormData({
-          name: initialData.name || '',
-          email: initialData.email,
-          role: initialData.role,
-          status: initialData.status
-        });
-      } else {
-        setFormData({ name: '', email: '', role: 'User', status: 'Active' });
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
       }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
     }
-  }, [open, mode, initialData]);
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": ["node_modules"]
+}
+</file>
 
-  const handleSubmit = async () => {
-    setLoading(true);
-    setError('');
-    let res;
+<file path="prisma/schema.prisma">
+// prisma/schema.prisma
 
-    if (mode === 'add') {
-      res = await createUser(formData);
-    } else if (mode === 'edit' && initialData) {
-      res = await updateUser({ id: initialData.id, ...formData });
-    }
-
-    setLoading(false);
-
-    if (res?.success) {
-      onSubmit(); // 刷新父页面数据
-      onClose();  // 关闭抽屉
-    } else {
-      setError(res?.error || 'Operation failed');
-    }
-  };
-
-  return (
-    <Drawer
-      anchor="right"
-      open={open}
-      onClose={onClose}
-      PaperProps={{
-        sx: { width: { xs: '100%', sm: 400 }, p: 4, backgroundColor: '#faf9f6' }
-      }}
-    >
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography variant="h5" sx={{ fontWeight: 800, color: '#5d4037' }}>
-          {mode === 'add' ? 'New User' : 'Edit User'}
-        </Typography>
-        <IconButton onClick={onClose} size="small">
-          <CloseIcon />
-        </IconButton>
-      </Box>
-
-      <Stack spacing={3}>
-        <TextField
-          label="Full Name"
-          fullWidth
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          sx={{ '& .MuiOutlinedInput-root.Mui-focused fieldset': { borderColor: '#6d8c7d' } }}
-        />
-        <TextField
-          label="Email Address"
-          fullWidth
-          value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          disabled={mode === 'edit'} // 编辑模式下通常不允许修改 ID/Email
-          helperText={mode === 'edit' ? "Email cannot be changed" : ""}
-          sx={{ '& .MuiOutlinedInput-root.Mui-focused fieldset': { borderColor: '#6d8c7d' } }}
-        />
-        
-        <FormControl fullWidth>
-          <InputLabel>Role</InputLabel>
-          <Select
-            value={formData.role}
-            label="Role"
-            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-          >
-            <MenuItem value="Admin">Admin</MenuItem>
-            <MenuItem value="Manager">Manager</MenuItem>
-            <MenuItem value="User">User</MenuItem>
-          </Select>
-        </FormControl>
-
-        <FormControl fullWidth>
-          <InputLabel>Status</InputLabel>
-          <Select
-            value={formData.status}
-            label="Status"
-            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-          >
-            <MenuItem value="Active">Active</MenuItem>
-            <MenuItem value="Disabled">Disabled</MenuItem>
-            <MenuItem value="Pending">Pending</MenuItem>
-          </Select>
-        </FormControl>
-
-        {error && (
-          <Typography color="error" variant="body2">{error}</Typography>
-        )}
-
-        <Box sx={{ mt: 4, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-          <Button variant="outlined" onClick={onClose} sx={{ color: '#8d6e63', borderColor: '#8d6e63' }}>
-            Cancel
-          </Button>
-          <Button 
-            variant="contained" 
-            onClick={handleSubmit}
-            disabled={loading}
-            sx={{ backgroundColor: '#6d8c7d', '&:hover': { backgroundColor: '#5a7568' } }}
-          >
-            {loading ? 'Saving...' : (mode === 'add' ? 'Create User' : 'Save Changes')}
-          </Button>
-        </Box>
-      </Stack>
-    </Drawer>
-  );
+generator client {
+  provider = "prisma-client-js"
 }
 
-// --- 主页面组件 ---
-export default function UsersPage() {
-  const [users, setUsers] = useState<UserData[]>([]);
-  const [total, setTotal] = useState(0);
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
 
-  // 筛选与分页
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [searchName, setSearchName] = useState('');
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
-  const [allRoles, setAllRoles] = useState<string[]>([]);
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String?  
+  email        String   @unique
+  password     String
+  phone        String?  
+  dob          String?  
+  address      String?  
+  gender       String?  // 👉 补充：性别
+  avatarUrl    String?  @db.LongText  // 存储用户头像路径
+  isFirstLogin Boolean  @default(true) // 核心：标记是否为首次登录
+  role         String   @default("User")
+  status       String   @default("Active")
+  createdAt    DateTime @default(now())
+}
 
-  // 多选状态
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+model Company {
+  // 字段定义：左边是驼峰(代码用)，右边是映射(数据库用)
+  id            Int      @id @default(autoincrement())
+  
+  companyCode   String   @unique @map("company_code") // 对应 SQL: company_code
+  name          String   @map("company_name")         // 对应 SQL: company_name
+  level         Int      // 对应 SQL: level (INT)
+  country       String?  // 对应 SQL: country (可能为空)
+  city          String?  // 对应 SQL: city
+  foundedYear   Int?     @map("founded_year")         // 对应 SQL: founded_year
+  annualRevenue BigInt?  @map("annual_revenue")       // 对应 SQL: annual_revenue (BIGINT)
+  employees     Int?     // 对应 SQL: employees
+  createdAt     DateTime @default(now()) @map("created_at")
 
-  // 抽屉状态
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerMode, setDrawerMode] = useState<'add' | 'edit'>('add');
-  const [editTarget, setEditTarget] = useState<UserData | null>(null);
+  // 表名映射：代码里叫 Company (单数)，数据库里叫 companies (复数)
+  @@map("companies")
+}
+</file>
 
-  // 初始化
-  useEffect(() => {
-    loadRoles();
-    fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+<file path="src/app/globals.css">
+/* Clean styles for MUI */
+</file>
 
-  // 监听筛选变动 (防抖)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setPage(0); // 重置到第一页
-      fetchData();
-    }, 300);
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchName, selectedRoles]);
+<file path="src/app/layout.tsx">
+import * as React from 'react';
+import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import { Roboto } from 'next/font/google';
+import theme from '@/theme'; // 必须有这个引用
 
-  // 监听分页变动
-  useEffect(() => {
-    fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, rowsPerPage]);
+const roboto = Roboto({
+  weight: ['300', '400', '500', '700'],
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-roboto',
+});
 
-  const loadRoles = async () => {
-    const roles = await getUserRoles();
-    setAllRoles(roles);
-  };
-
-  const fetchData = async () => {
-    const res = await getUsers({
-      page: page + 1,
-      pageSize: rowsPerPage,
-      search: searchName,
-      roles: selectedRoles
-    });
-    if (res.success) {
-      setUsers(res.data as UserData[]);
-      setTotal(res.total || 0);
-    }
-  };
-
-  // --- 事件处理 ---
-
-  const handleOpenAdd = () => {
-    setDrawerMode('add');
-    setEditTarget(null);
-    setDrawerOpen(true);
-  };
-
-  const handleOpenEdit = (user: UserData) => {
-    setDrawerMode('edit');
-    setEditTarget(user);
-    setDrawerOpen(true);
-  };
-
-  const handleDeleteOne = async (id: number) => {
-    if (confirm('Are you sure you want to delete this user?')) {
-      await deleteUser(id);
-      fetchData();
-    }
-  };
-
-  const handleBulkDelete = async () => {
-    if (confirm(`Are you sure you want to delete ${selectedIds.length} users?`)) {
-      await deleteUsers(selectedIds);
-      setSelectedIds([]); // 清空选中
-      fetchData();
-    }
-  };
-
-  const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.checked) {
-      const newSelected = users.map((n) => n.id);
-      setSelectedIds(newSelected);
-      return;
-    }
-    setSelectedIds([]);
-  };
-
-  // 修复点：移除了 MouseEvent 类型，使用 _event 忽略参数，解决 TS 报错
-  const handleClick = (_event: unknown, id: number) => {
-    const selectedIndex = selectedIds.indexOf(id);
-    let newSelected: number[] = [];
-
-    if (selectedIndex === -1) {
-      newSelected = newSelected.concat(selectedIds, id);
-    } else if (selectedIndex === 0) {
-      newSelected = newSelected.concat(selectedIds.slice(1));
-    } else if (selectedIndex === selectedIds.length - 1) {
-      newSelected = newSelected.concat(selectedIds.slice(0, -1));
-    } else if (selectedIndex > 0) {
-      newSelected = newSelected.concat(
-        selectedIds.slice(0, selectedIndex),
-        selectedIds.slice(selectedIndex + 1),
-      );
-    }
-    setSelectedIds(newSelected);
-  };
-
-  // 状态颜色 Helper
-  const getStatusColor = (status: string) => {
-    if (status === 'Active') return 'success';
-    if (status === 'Disabled') return 'default';
-    if (status === 'Pending') return 'warning';
-    return 'default';
-  };
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4, alignItems: 'center' }}>
-        <Typography variant="h4" sx={{ fontWeight: 800, color: '#5d4037', letterSpacing: '-0.5px' }}>
-          User Management
-        </Typography>
-        <Button 
-          variant="contained" 
-          startIcon={<AddIcon />}
-          onClick={handleOpenAdd}
-          sx={{ 
-            backgroundColor: '#6d8c7d', 
-            borderRadius: '50px',
-            textTransform: 'none',
-            '&:hover': { backgroundColor: '#5a7568' }
-          }}
-        >
-          Add New User
-        </Button>
-      </Box>
-
-      {/* --- Filter Bar --- */}
-      <Paper 
-        elevation={0}
-        sx={{ 
-          p: 3, mb: 4, borderRadius: '24px', 
-          backgroundColor: 'rgba(255, 253, 245, 0.6)', 
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(139, 115, 85, 0.1)',
-          display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap'
-        }}
-      >
-        <TextField
-          placeholder="Search name or email..."
-          size="small"
-          value={searchName}
-          onChange={(e) => setSearchName(e.target.value)}
-          sx={{ 
-            flexGrow: 1, 
-            maxWidth: 400,
-            '& .MuiOutlinedInput-root': {
-              borderRadius: '50px',
-              backgroundColor: '#fff',
-              '& fieldset': { borderColor: 'rgba(141, 110, 99, 0.2)' },
-              '&:hover fieldset': { borderColor: '#6d8c7d' },
-              '&.Mui-focused fieldset': { borderColor: '#6d8c7d' },
-            }
-          }}
-          InputProps={{
-            startAdornment: <InputAdornment position="start"><SearchIcon sx={{color:'#8d6e63'}}/></InputAdornment>
-          }}
-        />
-
-        <FormControl size="small" sx={{ minWidth: 200 }}>
-          <InputLabel id="role-select-label" sx={{ color: '#8d6e63' }}>Filter by Role</InputLabel>
-          <Select
-            labelId="role-select-label"
-            multiple
-            value={selectedRoles}
-            onChange={(e) => setSelectedRoles(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value as string[])}
-            input={<OutlinedInput label="Filter by Role" />}
-            renderValue={(selected) => (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {selected.map((value) => <Chip key={value} label={value} size="small" sx={{ backgroundColor: '#e0dbd6' }} />)}
-              </Box>
-            )}
-            sx={{
-              borderRadius: '50px',
-              backgroundColor: '#fff',
-              '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(141, 110, 99, 0.2)' },
-              '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#6d8c7d' },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#6d8c7d' },
-            }}
-          >
-            {allRoles.map((role) => (
-              <MenuItem key={role} value={role}>{role}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        {selectedIds.length > 0 && (
-          <Button 
-            variant="contained" 
-            color="error" 
-            startIcon={<DeleteIcon />}
-            onClick={handleBulkDelete}
-            sx={{ borderRadius: '50px', ml: 'auto', fontWeight: 'bold' }}
-          >
-            Delete ({selectedIds.length})
-          </Button>
-        )}
-      </Paper>
-
-      {/* --- Table --- */}
-      <Paper 
-        elevation={0}
-        sx={{ 
-          borderRadius: '24px', 
-          overflow: 'hidden', 
-          backgroundColor: '#fff',
-          boxShadow: '0 4px 20px rgba(139, 115, 85, 0.05)',
-          border: '1px solid rgba(0,0,0,0.02)'
-        }}
-      >
-        <TableContainer>
-          <Table>
-            <TableHead sx={{ backgroundColor: '#faf9f6' }}>
-              <TableRow>
-                <TableCell padding="checkbox">
-                  <Checkbox 
-                    color="primary"
-                    indeterminate={selectedIds.length > 0 && selectedIds.length < users.length}
-                    checked={users.length > 0 && selectedIds.length === users.length}
-                    onChange={handleSelectAll}
-                    sx={{ color: '#8d6e63', '&.Mui-checked': { color: '#6d8c7d' } }}
-                  />
-                </TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#8d6e63' }}>NAME</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#8d6e63' }}>EMAIL</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#8d6e63' }}>ROLE</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#8d6e63' }}>STATUS</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700, color: '#8d6e63' }}>ACTIONS</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {users.map((user) => {
-                const isSelected = selectedIds.indexOf(user.id) !== -1;
-                return (
-                  <TableRow 
-                    key={user.id} 
-                    hover 
-                    role="checkbox"
-                    selected={isSelected}
-                    sx={{ '&.Mui-selected': { backgroundColor: 'rgba(109, 140, 125, 0.08) !important' } }}
-                  >
-                    <TableCell padding="checkbox">
-                      <Checkbox 
-                        color="primary"
-                        checked={isSelected}
-                        onChange={(event) => handleClick(event, user.id)}
-                        sx={{ color: '#8d6e63', '&.Mui-checked': { color: '#6d8c7d' } }}
-                      />
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: '#5d4037' }}>{user.name || '-'}</TableCell>
-                    <TableCell sx={{ color: '#637381' }}>{user.email}</TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={user.role} 
-                        size="small" 
-                        sx={{ bgcolor: '#efebe9', color: '#5d4037', fontWeight: 500 }} 
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={user.status} 
-                        size="small" 
-                        color={getStatusColor(user.status) as any} 
-                        variant="outlined" 
-                        sx={{ fontWeight: 500 }}
-                      />
-                    </TableCell>
-                    <TableCell align="right">
-                      <IconButton size="small" onClick={() => handleOpenEdit(user)} sx={{ color: '#6d8c7d', mr: 1 }}>
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton size="small" onClick={() => handleDeleteOne(user.id)} sx={{ color: '#ff8a65' }}>
-                        <DeleteIcon />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-              {users.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8, color: '#aa8e85' }}>
-                    No users found.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        <TablePagination
-          component="div"
-          count={total}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={(e, p) => setPage(p)}
-          onRowsPerPageChange={(e) => {
-            setRowsPerPage(parseInt(e.target.value, 10));
-            setPage(0);
-          }}
-          sx={{
-            color: '#8d6e63',
-            '.MuiTablePagination-select': { color: '#5d4037' }
-          }}
-        />
-      </Paper>
-
-      {/* --- Drawer (抽屉：用于添加和编辑) --- */}
-      <UserDrawer 
-        open={drawerOpen}
-        mode={drawerMode}
-        initialData={editTarget}
-        onClose={() => setDrawerOpen(false)}
-        onSubmit={fetchData} // 提交成功后重新加载列表
-      />
-    </Box>
+    <html lang="zh" className={roboto.variable}>
+      <body>
+        <AppRouterCacheProvider options={{ enableCssLayer: true }}>
+          <ThemeProvider theme={theme}>
+            <CssBaseline />
+            {children}
+          </ThemeProvider>
+        </AppRouterCacheProvider>
+      </body>
+    </html>
   );
 }
 </file>
 
-<file path="src/app/actions/user.ts">
-'use server';
+<file path="src/app/page.tsx">
+import { redirect } from 'next/navigation'
 
-import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
-
-// --- 类型定义 ---
-export interface UserFilter {
-  search?: string;
-  roles?: string[];
-  page?: number;
-  pageSize?: number;
-}
-
-export interface CreateUserDTO {
-  name: string;
-  email: string;
-  role: string;
-  status: string;
-  password?: string;
-}
-
-export interface UpdateUserDTO {
-  id: number;
-  name?: string;
-  email?: string;
-  role?: string;
-  status?: string;
-}
-
-// --- 1. 获取用户列表 (带分页、搜索、筛选) ---
-export async function getUsers(filter: UserFilter) {
-  try {
-    const { search, roles, page = 1, pageSize = 10 } = filter;
-    const where: Prisma.UserWhereInput = {};
-
-    // 搜索逻辑：匹配 姓名 OR 邮箱
-    if (search) {
-      where.OR = [
-        { name: { contains: search } }, 
-        { email: { contains: search } },
-      ];
-    }
-
-    // 角色筛选逻辑
-    if (roles && roles.length > 0) {
-      where.role = { in: roles };
-    }
-
-    // 查询总数 (用于前端分页)
-    const total = await prisma.user.count({ where });
-
-    // 查询数据
-    const users = await prisma.user.findMany({
-      where,
-      orderBy: { createdAt: 'desc' }, // 新用户排前面
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
-
-    return { success: true, data: users, total };
-  } catch (error) {
-    console.error("Fetch users error:", error);
-    return { success: false, data: [], total: 0 };
-  }
-}
-
-// --- 2. 创建用户 ---
-export async function createUser(data: CreateUserDTO) {
-  try {
-    await prisma.user.create({
-      data: {
-        name: data.name,
-        email: data.email,
-        role: data.role,
-        status: data.status,
-        password: data.password || '123456', // 默认密码
-      },
-    });
-    return { success: true };
-  } catch (error) {
-    console.error("Create user error:", error);
-    return { success: false, error: "User create failed. Email might already exist." };
-  }
-}
-
-// --- 3. 更新用户 ---
-export async function updateUser(data: UpdateUserDTO) {
-  try {
-    const { id, ...rest } = data;
-    await prisma.user.update({
-      where: { id },
-      data: rest,
-    });
-    return { success: true };
-  } catch (error) {
-    console.error("Update user error:", error);
-    return { success: false, error: "Failed to update user." };
-  }
-}
-
-// --- 4. 删除单个用户 ---
-export async function deleteUser(id: number) {
-  try {
-    await prisma.user.delete({ where: { id } });
-    return { success: true };
-  } catch (error) {
-    console.error("Delete user error:", error);
-    return { success: false, error: "Failed to delete user." };
-  }
-}
-
-// --- 5. 批量删除用户 ---
-export async function deleteUsers(ids: number[]) {
-  try {
-    await prisma.user.deleteMany({
-      where: { id: { in: ids } },
-    });
-    return { success: true };
-  } catch (error) {
-    console.error("Bulk delete error:", error);
-    return { success: false, error: "Failed to delete users." };
-  }
-}
-
-// --- 6. 获取现有角色列表 (用于筛选器) ---
-export async function getUserRoles() {
-  try {
-    const groups = await prisma.user.groupBy({
-      by: ['role'],
-      orderBy: { role: 'asc' }
-    });
-    return groups.map(g => g.role);
-  } catch (error) {
-    return [];
-  }
-}
-</file>
-
-<file path="src/app/page.module.css">
-.page {
-  --background: #fafafa;
-  --foreground: #fff;
-
-  --text-primary: #000;
-  --text-secondary: #666;
-
-  --button-primary-hover: #383838;
-  --button-secondary-hover: #f2f2f2;
-  --button-secondary-border: #ebebeb;
-
-  display: flex;
-  min-height: 100vh;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-geist-sans);
-  background-color: var(--background);
-}
-
-.main {
-  display: flex;
-  min-height: 100vh;
-  width: 100%;
-  max-width: 800px;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: space-between;
-  background-color: var(--foreground);
-  padding: 120px 60px;
-}
-
-.intro {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  text-align: left;
-  gap: 24px;
-}
-
-.intro h1 {
-  max-width: 320px;
-  font-size: 40px;
-  font-weight: 600;
-  line-height: 48px;
-  letter-spacing: -2.4px;
-  text-wrap: balance;
-  color: var(--text-primary);
-}
-
-.intro p {
-  max-width: 440px;
-  font-size: 18px;
-  line-height: 32px;
-  text-wrap: balance;
-  color: var(--text-secondary);
-}
-
-.intro a {
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.ctas {
-  display: flex;
-  flex-direction: row;
-  width: 100%;
-  max-width: 440px;
-  gap: 16px;
-  font-size: 14px;
-}
-
-.ctas a {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 40px;
-  padding: 0 16px;
-  border-radius: 128px;
-  border: 1px solid transparent;
-  transition: 0.2s;
-  cursor: pointer;
-  width: fit-content;
-  font-weight: 500;
-}
-
-a.primary {
-  background: var(--text-primary);
-  color: var(--background);
-  gap: 8px;
-}
-
-a.secondary {
-  border-color: var(--button-secondary-border);
-}
-
-/* Enable hover only on non-touch devices */
-@media (hover: hover) and (pointer: fine) {
-  a.primary:hover {
-    background: var(--button-primary-hover);
-    border-color: transparent;
-  }
-
-  a.secondary:hover {
-    background: var(--button-secondary-hover);
-    border-color: transparent;
-  }
-}
-
-@media (max-width: 600px) {
-  .main {
-    padding: 48px 24px;
-  }
-
-  .intro {
-    gap: 16px;
-  }
-
-  .intro h1 {
-    font-size: 32px;
-    line-height: 40px;
-    letter-spacing: -1.92px;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  .logo {
-    filter: invert();
-  }
-
-  .page {
-    --background: #000;
-    --foreground: #000;
-
-    --text-primary: #ededed;
-    --text-secondary: #999;
-
-    --button-primary-hover: #ccc;
-    --button-secondary-hover: #1a1a1a;
-    --button-secondary-border: #1a1a1a;
-  }
+export default function RootPage() {
+  redirect('/login');
 }
 </file>
 
@@ -1789,560 +3217,6 @@ export default function CompanyBarChart() {
 }
 </file>
 
-<file path="src/components/Navbar.tsx">
-'use client';
-
-import * as React from 'react';
-import { 
-  AppBar, 
-  Box, 
-  Toolbar, 
-  IconButton, 
-  Typography, 
-  Menu, 
-  Container, 
-  Avatar, 
-  Button, 
-  Tooltip, 
-  MenuItem 
-} from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
-import AdbIcon from '@mui/icons-material/Adb'; // 你可以换成自己的 Logo 图标
-import { useRouter } from 'next/navigation';
-
-// 定义导航菜单项
-const pages = [
-  { name: '仪表盘', path: '/dashboard' },
-  { name: '项目案例', path: '/projects' },
-  { name: '技术博客', path: '/blog' }
-];
-
-// 定义用户头像下拉菜单
-const settings = ['个人资料', '账号设置', '退出登录'];
-
-export default function Navbar() {
-  const router = useRouter();
-  const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(null);
-  const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(null);
-
-  const handleOpenNavMenu = (event: React.MouseEvent<HTMLElement>) => setAnchorElNav(event.currentTarget);
-  const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => setAnchorElUser(event.currentTarget);
-  const handleCloseNavMenu = () => setAnchorElNav(null);
-  const handleCloseUserMenu = () => setAnchorElUser(null);
-
-  return (
-    <AppBar position="sticky" elevation={1}>
-      <Container maxWidth="xl">
-        <Toolbar disableGutters>
-          {/* --- 桌面端 Logo --- */}
-          <AdbIcon sx={{ display: { xs: 'none', md: 'flex' }, mr: 1 }} />
-          <Typography
-            variant="h6"
-            noWrap
-            component="a"
-            href="/"
-            sx={{
-              mr: 2,
-              display: { xs: 'none', md: 'flex' },
-              fontWeight: 700,
-              letterSpacing: '.1rem',
-              color: 'inherit',
-              textDecoration: 'none',
-            }}
-          >
-            RICHARD_SYSTEM
-          </Typography>
-
-          {/* --- 移动端菜单按钮 --- */}
-          <Box sx={{ flexGrow: 1, display: { xs: 'flex', md: 'none' } }}>
-            <IconButton size="large" onClick={handleOpenNavMenu} color="inherit">
-              <MenuIcon />
-            </IconButton>
-            <Menu
-              anchorEl={anchorElNav}
-              open={Boolean(anchorElNav)}
-              onClose={handleCloseNavMenu}
-              sx={{ display: { xs: 'block', md: 'none' } }}
-            >
-              {pages.map((page) => (
-                <MenuItem key={page.name} onClick={() => { handleCloseNavMenu(); router.push(page.path); }}>
-                  <Typography textAlign="center">{page.name}</Typography>
-                </MenuItem>
-              ))}
-            </Menu>
-          </Box>
-
-          {/* --- 桌面端导航链接 --- */}
-          <AdbIcon sx={{ display: { xs: 'flex', md: 'none' }, mr: 1 }} />
-          <Typography
-            variant="h5"
-            noWrap
-            component="a"
-            href=""
-            sx={{
-              mr: 2,
-              display: { xs: 'flex', md: 'none' },
-              flexGrow: 1,
-              fontWeight: 700,
-              color: 'inherit',
-              textDecoration: 'none',
-            }}
-          >
-            LOGO
-          </Typography>
-          <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>
-            {pages.map((page) => (
-              <Button
-                key={page.name}
-                onClick={() => router.push(page.path)}
-                sx={{ my: 2, color: 'white', display: 'block' }}
-              >
-                {page.name}
-              </Button>
-            ))}
-          </Box>
-
-          {/* --- 用户个人中心 (右侧) --- */}
-          <Box sx={{ flexGrow: 0 }}>
-            <Tooltip title="打开设置">
-              <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                {/* 这里的文字可以改成你的名字缩写 CZ */}
-                <Avatar alt="Chen Zhe" src="/static/images/avatar/2.jpg" />
-              </IconButton>
-            </Tooltip>
-            <Menu
-              sx={{ mt: '45px' }}
-              anchorEl={anchorElUser}
-              open={Boolean(anchorElUser)}
-              onClose={handleCloseUserMenu}
-            >
-              {settings.map((setting) => (
-                <MenuItem key={setting} onClick={handleCloseUserMenu}>
-                  <Typography textAlign="center">{setting}</Typography>
-                </MenuItem>
-              ))}
-            </Menu>
-          </Box>
-        </Toolbar>
-      </Container>
-    </AppBar>
-  );
-}
-</file>
-
-<file path="src/components/Topbar.tsx">
-'use client';
-
-import React, { useState } from 'react';
-import {
-  AppBar, Toolbar, Box, IconButton, Avatar, Typography, 
-  Drawer, Stack, Button, Divider, Badge
-} from '@mui/material';
-import {
-  Notifications as NotificationsIcon,
-  Logout as LogoutIcon,
-  Person as PersonIcon,
-  Settings as SettingsIcon,
-  Close as CloseIcon
-} from '@mui/icons-material';
-import { logout } from '@/app/actions/auth';
-
-// 模拟当前登录用户数据 (后续可替换为从 Context 或 API 获取)
-const currentUser = {
-  name: 'Admin User',
-  email: 'admin@company.com',
-  role: 'Administrator',
-  department: 'HQ / IT Dept',
-  avatarUrl: '' // 如果有图片链接填这里，没有则显示首字母
-};
-
-export default function TopBar() {
-  const [open, setOpen] = useState(false);
-
-  // 处理注销
-  const handleLogout = async () => {
-    await logout();
-  };
-
-  return (
-    <>
-      {/* --- 顶栏 (AppBar) --- */}
-      <AppBar 
-        position="sticky" 
-        elevation={0}
-        sx={{
-          backgroundColor: 'rgba(255, 253, 245, 0.8)', // 玻璃拟态背景
-          backdropFilter: 'blur(20px)',
-          borderBottom: '1px solid rgba(139, 115, 85, 0.1)',
-          color: '#5d4037',
-          zIndex: (theme) => theme.zIndex.drawer + 1 // 确保在侧边栏之上(可选)
-        }}
-      >
-        <Toolbar sx={{ justifyContent: 'flex-end', gap: 2 }}>
-          
-          {/* 这里预留空间给未来的扩展功能，比如通知铃铛 */}
-          <IconButton size="small">
-            <Badge variant="dot" color="error">
-              <NotificationsIcon sx={{ color: '#8d6e63' }} />
-            </Badge>
-          </IconButton>
-
-          {/* 头像区域 (点击触发抽屉) */}
-          <Box 
-            onClick={() => setOpen(true)}
-            sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 1.5, 
-              cursor: 'pointer',
-              padding: '4px 12px',
-              borderRadius: '50px',
-              transition: '0.2s',
-              '&:hover': { backgroundColor: 'rgba(109, 140, 125, 0.1)' }
-            }}
-          >
-            <Typography variant="body2" sx={{ fontWeight: 600, display: { xs: 'none', sm: 'block' } }}>
-              {currentUser.name}
-            </Typography>
-            <Avatar 
-              sx={{ 
-                bgcolor: '#6d8c7d', 
-                width: 36, 
-                height: 36,
-                fontSize: '0.9rem'
-              }}
-              src={currentUser.avatarUrl}
-            >
-              {currentUser.name.charAt(0)}
-            </Avatar>
-          </Box>
-        </Toolbar>
-      </AppBar>
-
-      {/* --- 个人信息抽屉 (Profile Drawer) --- */}
-      <Drawer
-        anchor="right"
-        open={open}
-        onClose={() => setOpen(false)}
-        PaperProps={{
-          sx: { width: 320, p: 3, backgroundColor: '#faf9f6' }
-        }}
-      >
-        {/* 抽屉头部 */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: '#5d4037' }}>
-            My Profile
-          </Typography>
-          <IconButton onClick={() => setOpen(false)} size="small">
-            <CloseIcon />
-          </IconButton>
-        </Box>
-
-        {/* 个人信息卡片区域 */}
-        <Stack spacing={3} sx={{ flexGrow: 1 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, mb: 2 }}>
-            <Avatar 
-              sx={{ width: 80, height: 80, bgcolor: '#6d8c7d', fontSize: '2rem' }}
-              src={currentUser.avatarUrl}
-            >
-              {currentUser.name.charAt(0)}
-            </Avatar>
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="h6" sx={{ fontWeight: 700, color: '#5d4037' }}>
-                {currentUser.name}
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#8d6e63' }}>
-                {currentUser.role}
-              </Typography>
-            </Box>
-          </Box>
-
-          <Divider sx={{ borderColor: 'rgba(139, 115, 85, 0.2)' }} />
-
-          {/* 详细信息列表 */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Box>
-              <Typography variant="caption" sx={{ color: '#8d6e63', mb: 0.5, display: 'block' }}>Email</Typography>
-              <Typography variant="body2" sx={{ fontWeight: 500 }}>{currentUser.email}</Typography>
-            </Box>
-            <Box>
-              <Typography variant="caption" sx={{ color: '#8d6e63', mb: 0.5, display: 'block' }}>Department</Typography>
-              <Typography variant="body2" sx={{ fontWeight: 500 }}>{currentUser.department}</Typography>
-            </Box>
-          </Box>
-        </Stack>
-
-        {/* 底部按钮区域 */}
-        <Stack spacing={2} sx={{ mt: 4 }}>
-          {/* 预留设置按钮 */}
-          <Button 
-            variant="outlined" 
-            startIcon={<SettingsIcon />}
-            sx={{ 
-              color: '#5d4037', 
-              borderColor: 'rgba(139, 115, 85, 0.3)',
-              borderRadius: '12px'
-            }}
-          >
-            Account Settings
-          </Button>
-
-          {/* 注销按钮 */}
-          <Button 
-            variant="contained" 
-            color="error" 
-            startIcon={<LogoutIcon />}
-            onClick={handleLogout}
-            sx={{ 
-              borderRadius: '12px', 
-              backgroundColor: '#ff8a65',
-              boxShadow: 'none',
-              '&:hover': { backgroundColor: '#ff7043' }
-            }}
-          >
-            Sign Out
-          </Button>
-        </Stack>
-      </Drawer>
-    </>
-  );
-}
-</file>
-
-<file path="src/lib/prisma.ts">
-// src/lib/prisma.ts
-import { PrismaClient } from '@prisma/client';
-
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
-
-// Prisma 6 实例化不需要传任何参数，它会自动读 .env
-export const prisma = globalForPrisma.prisma || new PrismaClient();
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
-</file>
-
-<file path="src/theme.ts">
-// src/theme.ts
-'use client'; // 必须有这一行，否则会触发图 1 的 Functions cannot be passed 错误
-
-import { createTheme } from '@mui/material/styles';
-
-const theme = createTheme({
-  palette: {
-    mode: 'light',
-    primary: { main: '#1976d2' },
-  },
-  typography: {
-    fontFamily: 'var(--font-roboto), Arial, sans-serif',
-  },
-});
-
-export default theme;
-</file>
-
-<file path="eslint.config.mjs">
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
-
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
-]);
-
-export default eslintConfig;
-</file>
-
-<file path="next.config.ts">
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  /* config options here */
-};
-
-export default nextConfig;
-</file>
-
-<file path="pnpm-workspace.yaml">
-packages:
-  - .
-ignoredBuiltDependencies:
-  - sharp
-  - unrs-resolver
-</file>
-
-<file path="README.md">
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-</file>
-
-<file path="SSH.pub">
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBJbQQZLOlyd8l+l44BxLQbdCBxqV5A/7+jkJK26s8Zr zcemulate@gmail.com
-</file>
-
-<file path="tsconfig.json">
-{
-  "compilerOptions": {
-    "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "react-jsx",
-    "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
-    "paths": {
-      "@/*": ["./src/*"]
-    }
-  },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    "**/*.mts"
-  ],
-  "exclude": ["node_modules"]
-}
-</file>
-
-<file path="prisma/schema.prisma">
-// prisma/schema.prisma
-
-generator client {
-  provider = "prisma-client-js"
-}
-
-datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
-}
-
-model User {
-  id        Int      @id @default(autoincrement())
-  name      String?  // 新增：姓名
-  email     String   @unique
-  password  String
-  role      String   @default("User")    // 新增：角色 (例如 Admin, Manager, User)
-  status    String   @default("Active")  // 新增：状态 (例如 Active, Disabled)
-  createdAt DateTime @default(now())
-}
-
-model Company {
-  // 字段定义：左边是驼峰(代码用)，右边是映射(数据库用)
-  id            Int      @id @default(autoincrement())
-  
-  companyCode   String   @unique @map("company_code") // 对应 SQL: company_code
-  name          String   @map("company_name")         // 对应 SQL: company_name
-  level         Int      // 对应 SQL: level (INT)
-  country       String?  // 对应 SQL: country (可能为空)
-  city          String?  // 对应 SQL: city
-  foundedYear   Int?     @map("founded_year")         // 对应 SQL: founded_year
-  annualRevenue BigInt?  @map("annual_revenue")       // 对应 SQL: annual_revenue (BIGINT)
-  employees     Int?     // 对应 SQL: employees
-  createdAt     DateTime @default(now()) @map("created_at")
-
-  // 表名映射：代码里叫 Company (单数)，数据库里叫 companies (复数)
-  @@map("companies")
-}
-</file>
-
-<file path="src/app/globals.css">
-/* Clean styles for MUI */
-</file>
-
-<file path="src/app/layout.tsx">
-import * as React from 'react';
-import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
-import { ThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import { Roboto } from 'next/font/google';
-import theme from '@/theme'; // 必须有这个引用
-
-const roboto = Roboto({
-  weight: ['300', '400', '500', '700'],
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-roboto',
-});
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="zh" className={roboto.variable}>
-      <body>
-        <AppRouterCacheProvider options={{ enableCssLayer: true }}>
-          <ThemeProvider theme={theme}>
-            <CssBaseline />
-            {children}
-          </ThemeProvider>
-        </AppRouterCacheProvider>
-      </body>
-    </html>
-  );
-}
-</file>
-
-<file path="src/app/page.tsx">
-import { redirect } from 'next/navigation'
-
-export default function RootPage() {
-  redirect('/login');
-}
-</file>
-
 <file path=".gitignore">
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
@@ -2753,7 +3627,7 @@ export default function CompaniesPage() {
 <file path="src/app/login/page.tsx">
 // src/app/login/page.tsx
 'use client';
-import { useState } from 'react';
+import React, { useState } from 'react'; // 修复 1：引入 React
 import {
 	TextField, Button, Typography, Box, Alert, Snackbar,
 	Link as MuiLink, InputAdornment, Paper, Stack
@@ -2762,6 +3636,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import EmailIcon from '@mui/icons-material/Email';
 import LockIcon from '@mui/icons-material/Lock';
+import { loginUser } from '@/app/actions/auth'; // 引入真实的登录 Server Action
 
 export default function LoginPage() {
 	const router = useRouter();
@@ -2791,133 +3666,73 @@ export default function LoginPage() {
 	const handleLogin = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setServerError('');
-		// 这里保留你的登录逻辑...
-		// const result = await loginUser(formData); ...
 		
-		// 模拟成功
-		setSuccess(true);
-		setTimeout(() => router.push('/dashboard'), 1500);
+        // 调用真实的后端验证
+		const result = await loginUser(formData); 
+        
+        if (result.success) {
+            setSuccess(true);
+            setTimeout(() => router.push('/dashboard'), 1500);
+        } else {
+            setServerError(result.message || "登录失败，请检查账号密码");
+        }
 	};
 
 	return (
 		<Box sx={{
-			minHeight: '100vh',
-			display: 'flex',
-			justifyContent: 'center',
-			alignItems: 'center',
-			// 改动：大地森林暖色调背景 (浅卡其 -> 暖米灰)
-			background: 'linear-gradient(135deg, #fdfbf7 0%, #e8e6e1 100%)',
-			p: 2
+			minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center',
+			background: 'linear-gradient(135deg, #fdfbf7 0%, #e8e6e1 100%)', p: 2
 		}}>
 			<Paper elevation={0} sx={{
-				width: '100%',
-				maxWidth: '450px', // 改动：限制宽度，使其居中显示
-				p: { xs: 4, md: 5 },
-				borderRadius: '32px',
-				// 改动：背景色改为与页面融合的半透明暖白
-				backgroundColor: 'rgba(255, 255, 255, 0.65)',
-				backdropFilter: 'blur(20px) saturate(150%)',
-				border: '1px solid rgba(255, 255, 255, 0.5)',
-				boxShadow: '0 20px 40px rgba(93, 64, 55, 0.08)', // 阴影颜色调暖
+				width: '100%', maxWidth: '450px', p: { xs: 4, md: 5 }, borderRadius: '32px',
+				backgroundColor: 'rgba(255, 255, 255, 0.65)', backdropFilter: 'blur(20px) saturate(150%)',
+				border: '1px solid rgba(255, 255, 255, 0.5)', boxShadow: '0 20px 40px rgba(93, 64, 55, 0.08)',
 			}}>
-				
 				<Box sx={{ textAlign: 'center', mb: 4 }}>
-					<Typography variant="h4" gutterBottom sx={{
-						fontWeight: 900,
-						color: '#5d4037', // 深棕色字体
-						letterSpacing: '-0.5px'
-					}}>
+					<Typography variant="h4" gutterBottom sx={{ fontWeight: 900, color: '#5d4037', letterSpacing: '-0.5px' }}>
 						Welcome Back
 					</Typography>
-					<Typography variant="body2" sx={{ color: '#8d6e63' }}>
-						请输入您的账号信息以继续
-					</Typography>
+					<Typography variant="body2" sx={{ color: '#8d6e63' }}>请输入您的账号信息以继续</Typography>
 				</Box>
 
-				{serverError && <Alert severity="error" variant="filled" sx={{ mb: 3, borderRadius: '12px' }}>{serverError}</Alert>}
+				{serverError && (
+                    /* 修复 2：使用 @ts-expect-error 绕过 MUI Alert 在 React 19 中的子组件类型报错 */
+                    // @ts-expect-error: Known type issue with MUI Alert and React 19
+                    <Alert severity="error" variant="filled" sx={{ mb: 3, borderRadius: '12px' }}>
+                        {serverError}
+                    </Alert>
+                )}
 
 				<Box component="form" onSubmit={handleLogin} noValidate>
 					<Stack spacing={3}>
 						<TextField
-							fullWidth
-							placeholder="邮箱"
-							error={!!errors.email}
-							helperText={errors.email}
-							value={formData.email}
-							onBlur={() => handleBlur('email')}
-							onChange={e => setFormData({ ...formData, email: e.target.value })}
-							slotProps={{
-								input: {
-									startAdornment: (
-										<InputAdornment position="start">
-											<EmailIcon sx={{ color: '#8d6e63' }} />
-										</InputAdornment>
-									),
-								},
-							}}
+							fullWidth placeholder="邮箱" error={!!errors.email} helperText={errors.email}
+							value={formData.email} onBlur={() => handleBlur('email')}
+                            /* 修复 3：明确 e 的类型 */
+							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, email: e.target.value })}
+							slotProps={{ input: { startAdornment: <InputAdornment position="start"><EmailIcon sx={{ color: '#8d6e63' }} /></InputAdornment> } }}
 							sx={{
-								'& .MuiOutlinedInput-root': {
-									borderRadius: '50px',
-									backgroundColor: 'rgba(255, 255, 255, 0.5)',
-									'& fieldset': { borderColor: 'rgba(141, 110, 99, 0.15)' }, // 边框淡化
-									'&:hover fieldset': { borderColor: '#6d8c7d' }, // 悬停绿色
-									'&.Mui-focused fieldset': { borderColor: '#6d8c7d', borderWidth: '2px' },
-								},
+								'& .MuiOutlinedInput-root': { borderRadius: '50px', backgroundColor: 'rgba(255, 255, 255, 0.5)', '& fieldset': { borderColor: 'rgba(141, 110, 99, 0.15)' }, '&:hover fieldset': { borderColor: '#6d8c7d' }, '&.Mui-focused fieldset': { borderColor: '#6d8c7d', borderWidth: '2px' } },
 								'& .MuiInputBase-input': { color: '#5d4037', fontWeight: 500 }
 							}}
 						/>
 
 						<TextField
-							fullWidth
-							placeholder="密码"
-							type="password"
-							error={!!errors.password}
-							helperText={errors.password}
-							value={formData.password}
-							onBlur={() => handleBlur('password')}
-							onChange={e => setFormData({ ...formData, password: e.target.value })}
-							slotProps={{
-								input: {
-									startAdornment: (
-										<InputAdornment position="start">
-											<LockIcon sx={{ color: '#8d6e63' }} />
-										</InputAdornment>
-									),
-								},
-							}}
+							fullWidth placeholder="密码" type="password" error={!!errors.password} helperText={errors.password}
+							value={formData.password} onBlur={() => handleBlur('password')}
+                            /* 修复 3：明确 e 的类型 */
+							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, password: e.target.value })}
+							slotProps={{ input: { startAdornment: <InputAdornment position="start"><LockIcon sx={{ color: '#8d6e63' }} /></InputAdornment> } }}
 							sx={{
-								'& .MuiOutlinedInput-root': {
-									borderRadius: '50px',
-									backgroundColor: 'rgba(255, 255, 255, 0.5)',
-									'& fieldset': { borderColor: 'rgba(141, 110, 99, 0.15)' },
-									'&:hover fieldset': { borderColor: '#6d8c7d' },
-									'&.Mui-focused fieldset': { borderColor: '#6d8c7d', borderWidth: '2px' },
-								},
+								'& .MuiOutlinedInput-root': { borderRadius: '50px', backgroundColor: 'rgba(255, 255, 255, 0.5)', '& fieldset': { borderColor: 'rgba(141, 110, 99, 0.15)' }, '&:hover fieldset': { borderColor: '#6d8c7d' }, '&.Mui-focused fieldset': { borderColor: '#6d8c7d', borderWidth: '2px' } },
 								'& .MuiInputBase-input': { color: '#5d4037', fontWeight: 500 }
 							}}
 						/>
 					</Stack>
 
 					<Button
-						fullWidth
-						variant="contained"
-						size="large"
-						type="submit"
-						sx={{
-							mt: 5,
-							py: 1.8,
-							borderRadius: '50px',
-							fontWeight: 'bold',
-							fontSize: '1rem',
-							letterSpacing: '1px',
-							// 改动：森系渐变绿
-							background: 'linear-gradient(135deg, #6d8c7d 0%, #5a7568 100%)',
-							boxShadow: '0 8px 20px rgba(90, 117, 104, 0.25)',
-							'&:hover': {
-								background: 'linear-gradient(135deg, #5a7568 0%, #4b6358 100%)',
-								boxShadow: '0 10px 25px rgba(90, 117, 104, 0.35)',
-							}
-						}}
+						fullWidth variant="contained" size="large" type="submit"
+						sx={{ mt: 5, py: 1.8, borderRadius: '50px', fontWeight: 'bold', fontSize: '1rem', letterSpacing: '1px', background: 'linear-gradient(135deg, #6d8c7d 0%, #5a7568 100%)', boxShadow: '0 8px 20px rgba(90, 117, 104, 0.25)', '&:hover': { background: 'linear-gradient(135deg, #5a7568 0%, #4b6358 100%)', boxShadow: '0 10px 25px rgba(90, 117, 104, 0.35)' } }}
 					>
 						立即登录
 					</Button>
@@ -2925,78 +3740,16 @@ export default function LoginPage() {
 					<Box sx={{ mt: 4, textAlign: 'center' }}>
 						<Typography variant="body2" sx={{ color: '#8d6e63' }}>
 							还没有账户？{' '}
-							<MuiLink component={Link} href="/register" sx={{ 
-								color: '#5d4037', 
-								fontWeight: '800',
-								textDecoration: 'none',
-								position: 'relative',
-								'&::after': {
-									content: '""',
-									position: 'absolute',
-									width: '100%',
-									height: '2px',
-									bottom: '-2px',
-									left: 0,
-									backgroundColor: '#6d8c7d',
-									transform: 'scaleX(0)',
-									transition: 'transform 0.3s ease-in-out',
-									transformOrigin: 'right',
-								},
-								'&:hover::after': {
-									transform: 'scaleX(1)',
-									transformOrigin: 'left',
-								}
-							}}>
+							<MuiLink component={Link} href="/register" sx={{ color: '#5d4037', fontWeight: '800', textDecoration: 'none', position: 'relative', '&::after': { content: '""', position: 'absolute', width: '100%', height: '2px', bottom: '-2px', left: 0, backgroundColor: '#6d8c7d', transform: 'scaleX(0)', transition: 'transform 0.3s ease-in-out', transformOrigin: 'right' }, '&:hover::after': { transform: 'scaleX(1)', transformOrigin: 'left' } }}>
 								注册账号
 							</MuiLink>
 						</Typography>
 					</Box>
 				</Box>
 			</Paper>
-
 			<Snackbar open={success} autoHideDuration={2000} message="登录成功，正在跳转..." />
 		</Box>
 	);
-}
-</file>
-
-<file path="package.json">
-{
-  "name": "data_tracking",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
-    "@fontsource/roboto": "^5.2.9",
-    "@mui/icons-material": "^7.3.7",
-    "@mui/material": "^7.3.7",
-    "@mui/material-nextjs": "^7.3.7",
-    "@prisma/client": "6.19.1",
-    "chart.js": "^4.5.1",
-    "d3": "^7.9.0",
-    "next": "16.1.1",
-    "react": "19.2.3",
-    "react-chartjs-2": "^5.3.1",
-    "react-dom": "19.2.3"
-  },
-  "devDependencies": {
-    "@types/d3": "^7.4.3",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "dotenv": "^17.2.3",
-    "eslint": "^9",
-    "eslint-config-next": "16.1.1",
-    "prisma": "6.19.1",
-    "typescript": "^5"
-  }
 }
 </file>
 
@@ -3004,14 +3757,20 @@ export default function LoginPage() {
 // src/app/(main)/layout.tsx
 'use client';
 import { useState } from 'react';
-import { Box, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, IconButton, Divider, Typography, useTheme } from '@mui/material';
+import { 
+    Box, Drawer, List, ListItem, ListItemButton, ListItemIcon, 
+    ListItemText, IconButton, Divider, Typography, useTheme 
+} from '@mui/material';
 import { 
     Menu as MenuIcon, 
-    Dashboard as DashboardIcon, Business as BusinessIcon, Person as PersonIcon 
+    Dashboard as DashboardIcon, 
+    Business as BusinessIcon, 
+    Person as PersonIcon 
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import TopBar from '@/components/Topbar'; // <--- 1. 引入 TopBar 组件
+import TopBar from '@/components/Topbar';
+import WelcomeModal from '@/components/WelcomeModal'; // 引入首次登录欢迎弹窗
 
 const DRAWER_WIDTH = 280;
 
@@ -3089,8 +3848,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 sx={{ 
                     flexGrow: 1, 
                     width: '100%', 
-                    display: 'flex',        // <--- 2. 改为 Flex 布局
-                    flexDirection: 'column' // <--- 3. 垂直排列 (TopBar 在上，内容在下)
+                    display: 'flex',
+                    flexDirection: 'column'
                 }}
             >
                 {/* A. 顶部栏 */}
@@ -3099,63 +3858,178 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 {/* B. 页面实际内容 */}
                 <Box sx={{ 
                     flexGrow: 1, 
-                    p: { xs: 2, md: 5 }, // <--- 4. Padding 移到这里，防止 TopBar 被挤压
-                    overflow: 'auto'     // 内容过多时出现滚动条
+                    p: { xs: 2, md: 5 },
+                    overflow: 'auto'
                 }}>
                     {children}
                 </Box>
             </Box>
+
+            {/* C. 首次登录欢迎弹窗 */}
+            <WelcomeModal />
         </Box>
     );
 }
 </file>
 
 <file path="src/app/actions/auth.ts">
+// src/app/actions/auth.ts
 'use server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 export async function registerUser(formData: any) {
-	try {
-		const existing = await prisma.user.findUnique({ where: { email: formData.email } });
-		if (existing) {
-			return { success: false, message: "邮箱已存在" };
-		}
+    try {
+        // 1. 检查邮箱是否已被注册
+        const existingEmail = await prisma.user.findUnique({ 
+            where: { email: formData.email } 
+        });
+        if (existingEmail) {
+            return { success: false, message: "该邮箱已被注册" };
+        }
 
-		await prisma.user.create({ data: { email: formData.email, password: formData.password } });
-		return { success: true, message: "成功" };
-	} catch (e) {
-		return { success: false, message: "数据库写入失败" };
-	}
+        // 👉 2. 新增：检查昵称是否已被注册
+        if (formData.username) {
+            const existingName = await prisma.user.findFirst({
+                where: { name: formData.username }
+            });
+            if (existingName) {
+                return { success: false, message: "该昵称已被人使用" };
+            }
+        }
+
+        // 3. 将表单数据写入数据库
+        await prisma.user.create({ 
+            data: { 
+                email: formData.email, 
+                password: formData.password,
+                name: formData.username,      // 映射前端的 username 到数据库的 name
+                phone: formData.phone,        
+                dob: formData.dob || null,    
+                address: formData.address || null 
+            } 
+        });
+        
+        return { success: true, message: "成功" };
+    } catch (e) {
+        console.error("Registration Error:", e);
+        return { success: false, message: "数据库写入失败，请稍后重试" };
+    }
 }
 
+// 👉 升级：真实的登录并签发 Cookie
 export async function loginUser(formData: any) {
 	try {
 		const user = await prisma.user.findUnique({ where: { email: formData.email } });
-		if (!user) {
-			return { success: false, message: "用户不存在" };
-		}
-		if (user.password !== formData.password) {
-			return { success: false, message: "密码错误" };
-		}
+		if (!user) return { success: false, message: "用户不存在" };
+		if (user.password !== formData.password) return { success: false, message: "密码错误" };
+        
+        // 登录成功，将用户 ID 存入 HttpOnly Cookie 中（真实的会话保持）
+        const cookieStore = await cookies();
+        cookieStore.set('userId', user.id.toString(), {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            path: '/',
+            maxAge: 60 * 60 * 24 * 7 // 7天有效
+        });
+
 		return { success: true, message: "成功" };
 	} catch (e) {
 		return { success: false, message: "服务器错误" };
 	}
 }
 
-/**
- * 注销 / 退出登录
- */
+// 👉 新增：获取当前登录的用户信息
+export async function getCurrentUser() {
+    try {
+        const cookieStore = await cookies();
+        const userId = cookieStore.get('userId')?.value;
+        if (!userId) return { success: false, data: null };
+
+        const user = await prisma.user.findUnique({
+            where: { id: parseInt(userId) },
+            // 只选择安全的字段返回给前端，隐藏密码
+            select: { id: true, name: true, email: true, role: true, avatarUrl: true, isFirstLogin: true, gender: true, phone: true, dob: true, address: true }
+        });
+        return { success: true, data: user };
+    } catch (error) {
+        return { success: false, data: null };
+    }
+}
+
+// 👉 新增：完成首次登录配置，并关闭 isFirstLogin 状态
+export async function completeFirstLogin(data: { avatarUrl?: string | null, gender?: string }) {
+    try {
+        const cookieStore = await cookies();
+        const userId = cookieStore.get('userId')?.value;
+        if (!userId) return { success: false, message: "未登录" };
+
+        await prisma.user.update({
+            where: { id: parseInt(userId) },
+            data: {
+                avatarUrl: data.avatarUrl,
+                gender: data.gender,
+                isFirstLogin: false // 👉 核心：在这将状态永久改为 false
+            }
+        });
+        return { success: true };
+    } catch (error) {
+        return { success: false, message: "保存失败" };
+    }
+}
+
 export async function logout() {
-  // 1. 删除用于维持会话的 Cookie
-  const cookieStore = await cookies();
-  cookieStore.delete('userId'); 
-  cookieStore.delete('session');
-  
-  // 2. 重定向回登录页
-  redirect('/login');
+    const cookieStore = await cookies();
+    cookieStore.delete('userId'); 
+    redirect('/login');
+}
+
+// 👉 更新：增加了昵称唯一性校验
+export async function updateAccount(data: {
+    name?: string;
+    phone?: string;
+    gender?: string;
+    dob?: string;
+    address?: string;
+    avatarUrl?: string | null;
+}) {
+    try {
+        const cookieStore = await cookies();
+        const userId = cookieStore.get('userId')?.value;
+        if (!userId) return { success: false, message: "用户未登录" };
+
+        const currentUserId = parseInt(userId);
+
+        // 👉 核心逻辑：校验昵称是否被其他人使用
+        if (data.name) {
+            const existingUser = await prisma.user.findFirst({
+                where: {
+                    name: data.name,
+                    id: { not: currentUserId } // 排除当前登录的用户自己
+                }
+            });
+            if (existingUser) {
+                return { success: false, message: "该昵称已被人使用" };
+            }
+        }
+
+        await prisma.user.update({
+            where: { id: currentUserId },
+            data: {
+                name: data.name,
+                phone: data.phone,
+                gender: data.gender,
+                dob: data.dob,
+                address: data.address,
+                avatarUrl: data.avatarUrl
+            }
+        });
+        return { success: true, message: "个人资料更新成功" };
+    } catch (error) {
+        console.error("Update account error:", error);
+        return { success: false, message: "更新失败，请稍后重试" };
+    }
 }
 </file>
 
@@ -3471,234 +4345,257 @@ export async function getCompanyChartData(
 <file path="src/app/register/page.tsx">
 // src/app/register/page.tsx
 'use client';
-import { useState } from 'react';
-import { Container, Paper, TextField, Button, Typography, Box, Alert, Snackbar, Link as MuiLink, Stack, InputAdornment } from '@mui/material';
+import React, { useState } from 'react';
+import { 
+    Container, Paper, TextField, Button, Typography, Box, Alert, Snackbar, 
+    Link as MuiLink, Stack, InputAdornment, Grid 
+} from '@mui/material';
 import Link from 'next/link';
-import PersonAddIcon from '@mui/icons-material/PersonAdd'; // 增加图标，提升精致感
+
+// 图标导入
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import PersonIcon from '@mui/icons-material/Person';
 import EmailIcon from '@mui/icons-material/Email';
+import PhoneIcon from '@mui/icons-material/Phone';
 import LockIcon from '@mui/icons-material/Lock';
+import HomeIcon from '@mui/icons-material/Home';
+
 import { registerUser } from '@/app/actions/auth';
 
+// 统一的输入框样式
+const sharedInputSx = {
+    '& .MuiOutlinedInput-root': {
+        borderRadius: '50px',
+        backgroundColor: 'rgba(255, 255, 255, 0.5)',
+        '& fieldset': { borderColor: 'rgba(141, 110, 99, 0.15)' },
+        '&:hover fieldset': { borderColor: '#8d6e63' },
+        '&.Mui-focused fieldset': { borderColor: '#8d6e63', borderWidth: '2px' },
+    },
+    '& .MuiInputBase-input': { color: '#4e342e', fontWeight: 500 }
+};
+
 export default function RegisterPage() {
-	const [formData, setFormData] = useState({ email: '', password: '' });
-	const [errors, setErrors] = useState({ email: '', password: '' });
-	const [serverError, setServerError] = useState('');
-	const [success, setSuccess] = useState(false);
+    const [formData, setFormData] = useState({ 
+        username: '', email: '', phone: '', dob: '', password: '', confirmPassword: '', address: '' 
+    });
+    
+    const [errors, setErrors] = useState({ 
+        username: '', email: '', phone: '', password: '', confirmPassword: '' 
+    });
+    
+    const [serverError, setServerError] = useState('');
+    const [success, setSuccess] = useState(false);
 
-	const getFieldError = (name: string, value: string) => {
-		if (name === 'email') {
-			if (!value) return "必填";
-			else if (!value.includes('@')) return "需要输入 @";
-			else if (value.startsWith('@') || value.endsWith('@') || value.split('@')[1] === '') return "@前后需要输入字符";
-			else if (!value.includes('.')) return "需要输入 .";
-			else {
-				const domainPart = value.split('@')[1];
-				const suffix = domainPart.split('.').pop() || '';
-				if (suffix.length < 2) return "域名后缀至少2位";
-				if (!/^[a-zA-Z]+$/.test(suffix)) return "域名后缀只能是字母";
-			}
-		}
-		if (name === 'password') {
-			if (value.length < 6) return "至少6位";
-		}
-		return "";
-	};
+    const getFieldError = (name: string, value: string) => {
+        if (name === 'username' && !value) return "必填";
+        if (name === 'email') {
+            if (!value) return "必填";
+            if (!value.includes('@')) return "需要输入 @";
+            if (value.startsWith('@') || value.endsWith('@') || value.split('@')[1] === '') return "@前后需要输入字符";
+            if (!value.includes('.')) return "需要输入 .";
+            const suffix = value.split('@')[1].split('.').pop() || '';
+            if (suffix.length < 2) return "域名后缀至少2位";
+            if (!/^[a-zA-Z]+$/.test(suffix)) return "域名后缀只能是字母";
+        }
+        if (name === 'phone') {
+            if (!value) return "必填";
+            // 👉 优先拦截：如果首位不是 1
+            if (value.charAt(0) !== '1') {
+                return "首位数字要求为 1";
+            }
+            // 👉 其次拦截：如果包含非数字或者长度不是 11 位
+            if (!/^\d{11}$/.test(value)) {
+                return "电话号码要求 11 位数字";
+            }
+        }
+        if (name === 'password') {
+            if (!value) return "必填";
+            if (value.length < 6) return "至少6位";
+        }
+        if (name === 'confirmPassword') {
+            if (!value) return "必填";
+            if (value !== formData.password) return "两次输入的密码不一致";
+        }
+        return "";
+    };
 
-	const handleBlur = (field: 'email' | 'password') => {
-		const error = getFieldError(field, formData[field]);
-		setErrors(prev => ({ ...prev, [field]: error }));
-	};
+    const handleBlur = (field: keyof typeof errors) => {
+        const error = getFieldError(field, formData[field]);
+        setErrors(prev => ({ ...prev, [field]: error }));
+    };
 
-	const validate = () => {
-		const newErrors = {
-			email: getFieldError('email', formData.email),
-			password: getFieldError('password', formData.password),
-		};
-		setErrors(newErrors);
-		return Object.values(newErrors).every(x => x === "");
-	};
+    const validate = () => {
+        const newErrors = {
+            username: getFieldError('username', formData.username),
+            email: getFieldError('email', formData.email),
+            phone: getFieldError('phone', formData.phone),
+            password: getFieldError('password', formData.password),
+            confirmPassword: getFieldError('confirmPassword', formData.confirmPassword),
+        };
+        setErrors(newErrors);
+        return Object.values(newErrors).every(x => x === "");
+    };
 
-	const handleRegister = async (e: React.FormEvent) => {
-		e.preventDefault();
-		if (validate()) {
-			const result = await registerUser(formData);
-			if (result.success) {
-				setSuccess(true);
-				setFormData({ email: '', password: '' });
-			} else {
-				setServerError(result.message || '注册失败');
-			}
-		}
-	};
+    const handleRegister = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setServerError('');
 
-	return (
+        if (validate()) {
+            const result = await registerUser(formData);
+            if (result.success) {
+                setSuccess(true);
+                setFormData({ username: '', email: '', phone: '', dob: '', password: '', confirmPassword: '', address: '' });
+            } else {
+                // 👉 新增：如果是昵称被占用，直接挂载到输入框下方红字提示
+                if (result.message === "该昵称已被人使用") {
+                    setErrors(prev => ({ ...prev, username: result.message }));
+                } else {
+                    setServerError(result.message || '注册失败');
+                }
+            }
+        }
+    };
+
+    return (
         <Box sx={{
-            minHeight: '100vh',
-            width: '100%',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            // 改动 1: 背景色调整为“清晨迷雾绿”，比登录页更清新，但同属自然色系
-            background: 'linear-gradient(135deg, #f1f8f5 0%, #dde4e0 100%)',
-            p: 2
+            minHeight: '100vh', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center',
+            background: 'linear-gradient(135deg, #f1f8f5 0%, #dde4e0 100%)', p: 2
         }}>
-            <Container maxWidth="xs">
-                <Paper 
-                    elevation={0}
-                    sx={{ 
-                        p: { xs: 4, sm: 5 }, 
-                        borderRadius: '32px', 
-                        // 卡片保持一致的磨砂质感
-                        backgroundColor: 'rgba(255, 255, 255, 0.65)', 
-                        backdropFilter: 'blur(20px) saturate(150%)',
-                        border: '1px solid rgba(255, 255, 255, 0.5)',
-                        // 阴影稍微带一点点绿色调，与背景呼应
-                        boxShadow: '0 20px 40px rgba(85, 107, 95, 0.08)',
-                    }}
-                >
-                    <Box sx={{ textAlign: 'center', mb: 4 }}>
-                        <Box sx={{ 
-                            display: 'inline-flex', 
-                            p: 1.5, 
-                            borderRadius: '50%', 
-                            bgcolor: 'rgba(141, 110, 99, 0.1)', 
-                            mb: 2 
-                        }}>
+            <Container maxWidth="sm">
+                <Paper elevation={0} sx={{ 
+                    p: { xs: 4, sm: 5 }, borderRadius: '32px', backgroundColor: 'rgba(255, 255, 255, 0.65)', 
+                    backdropFilter: 'blur(20px) saturate(150%)', border: '1px solid rgba(255, 255, 255, 0.5)',
+                    boxShadow: '0 20px 40px rgba(85, 107, 95, 0.08)'
+                }}>
+                    <Box sx={{ textAlign: 'center', mb: 3 }}>
+                        <Box sx={{ display: 'inline-flex', p: 1.5, borderRadius: '50%', bgcolor: 'rgba(141, 110, 99, 0.1)', mb: 2 }}>
                             <PersonAddIcon sx={{ color: '#6d4c41', fontSize: 32 }} />
                         </Box>
-                        <Typography variant="h5" gutterBottom sx={{ 
-                            fontWeight: 800, 
-                            color: '#4e342e', // 深棕色，比登录页略深一点点
-                            letterSpacing: '1px'
-                        }}>
+                        <Typography variant="h5" gutterBottom sx={{ fontWeight: 800, color: '#4e342e', letterSpacing: '1px' }}>
                             创建新账号
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: '#795548' }}>
-                            Join the community
                         </Typography>
                     </Box>
 
-                    {serverError && <Alert severity="error" sx={{ mb: 3, borderRadius: '12px' }}>{serverError}</Alert>}
+                    {serverError && (
+                        // @ts-expect-error: Known type issue with MUI Alert and React 19
+                        <Alert severity="error" sx={{ mb: 3, borderRadius: '12px' }}>
+                            {serverError}
+                        </Alert>
+                    )}
 
                     <Box component="form" onSubmit={handleRegister} noValidate>
-                        <Stack spacing={2.5}>
+                        <Stack spacing={2}>
+                            
                             <TextField 
-                                fullWidth 
-                                placeholder="请输入邮箱" 
-                                variant="outlined"
-                                error={!!errors.email} 
-                                helperText={errors.email} 
-                                value={formData.email} 
-                                onBlur={() => handleBlur('email')}
-                                onChange={e => {
-                                    setFormData({ ...formData, email: e.target.value })
-                                    if (errors.email) setErrors({ ...errors, email: "" })
+                                fullWidth size="small" placeholder="用户名/昵称 *" 
+                                error={!!errors.username} helperText={errors.username}
+                                value={formData.username} onBlur={() => handleBlur('username')}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                    setFormData({ ...formData, username: e.target.value });
+                                    if (errors.username) setErrors({ ...errors, username: "" });
                                 }}
-                                slotProps={{
-                                    input: {
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <EmailIcon sx={{ color: '#8d6e63' }} />
-                                            </InputAdornment>
-                                        ),
-                                    },
-                                }}
-                                sx={{
-                                    '& .MuiOutlinedInput-root': {
-                                        borderRadius: '50px',
-                                        backgroundColor: 'rgba(255, 255, 255, 0.5)',
-                                        '& fieldset': { borderColor: 'rgba(141, 110, 99, 0.15)' },
-                                        // 改动 2: 悬停和焦点状态使用“大地暖棕色”，与登录页的绿色区分
-                                        '&:hover fieldset': { borderColor: '#8d6e63' },
-                                        '&.Mui-focused fieldset': { borderColor: '#8d6e63', borderWidth: '2px' },
-                                    },
-                                    '& .MuiInputBase-input': { color: '#4e342e', fontWeight: 500 }
-                                }}
+                                slotProps={{ input: { startAdornment: <InputAdornment position="start"><PersonIcon sx={{ color: '#8d6e63' }} /></InputAdornment> } }}
+                                sx={sharedInputSx}
                             />
+
                             <TextField 
-                                fullWidth 
-                                placeholder="设置密码" 
-                                type="password" 
-                                variant="outlined"
-                                error={!!errors.password} 
-                                helperText={errors.password} 
-                                value={formData.password} 
-                                onBlur={() => handleBlur('password')}
-                                onChange={e => {
-                                    setFormData({ ...formData, password: e.target.value })
-                                    if (errors.email) setErrors({ ...errors, email: "" })
+                                fullWidth size="small" placeholder="邮箱 *" 
+                                error={!!errors.email} helperText={errors.email} 
+                                value={formData.email} onBlur={() => handleBlur('email')}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                    setFormData({ ...formData, email: e.target.value });
+                                    if (errors.email) setErrors({ ...errors, email: "" });
                                 }}
-                                slotProps={{
-                                    input: {
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <LockIcon sx={{ color: '#8d6e63' }} />
-                                            </InputAdornment>
-                                        ),
-                                    },
+                                slotProps={{ input: { startAdornment: <InputAdornment position="start"><EmailIcon sx={{ color: '#8d6e63' }} /></InputAdornment> } }}
+                                sx={sharedInputSx}
+                            />
+
+                            <Grid container spacing={2}>
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <Typography variant="caption" sx={{ color: '#795548', display: 'block', mb: 0.5, ml: 1, fontWeight: 'bold' }}>电话号码 *</Typography>
+                                    <TextField 
+                                        fullWidth size="small" placeholder="输入电话号码" 
+                                        error={!!errors.phone} helperText={errors.phone}
+                                        value={formData.phone} onBlur={() => handleBlur('phone')}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                            setFormData({ ...formData, phone: e.target.value });
+                                            if (errors.phone) setErrors({ ...errors, phone: "" });
+                                        }}
+                                        slotProps={{ input: { startAdornment: <InputAdornment position="start"><PhoneIcon sx={{ color: '#8d6e63' }} /></InputAdornment> } }}
+                                        sx={sharedInputSx}
+                                    />
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <Typography variant="caption" sx={{ color: '#795548', display: 'block', mb: 0.5, ml: 1, fontWeight: 'bold' }}>年/月/日 (选填)</Typography>
+                                    <TextField 
+                                        fullWidth size="small" 
+                                        type="date" // 👉 新增：唤起浏览器原生日历
+                                        InputLabelProps={{ shrink: true }} // 防止文字重叠
+                                        value={formData.dob} 
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, dob: e.target.value })}
+                                        // 注：使用原生日历时，移除了图标，保持样式清爽
+                                        sx={sharedInputSx}
+                                    />
+                                </Grid>
+                            </Grid>
+
+                            <TextField 
+                                fullWidth size="small" placeholder="填写密码 *" type="password" 
+                                error={!!errors.password} helperText={errors.password} 
+                                value={formData.password} onBlur={() => handleBlur('password')}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                    setFormData({ ...formData, password: e.target.value });
+                                    if (errors.password) setErrors({ ...errors, password: "" });
                                 }}
-                                sx={{
-                                    '& .MuiOutlinedInput-root': {
-                                        borderRadius: '50px',
-                                        backgroundColor: 'rgba(255, 255, 255, 0.5)',
-                                        '& fieldset': { borderColor: 'rgba(141, 110, 99, 0.15)' },
-                                        '&:hover fieldset': { borderColor: '#8d6e63' },
-                                        '&.Mui-focused fieldset': { borderColor: '#8d6e63', borderWidth: '2px' },
-                                    },
-                                    '& .MuiInputBase-input': { color: '#4e342e', fontWeight: 500 }
+                                slotProps={{ input: { startAdornment: <InputAdornment position="start"><LockIcon sx={{ color: '#8d6e63' }} /></InputAdornment> } }}
+                                sx={sharedInputSx}
+                            />
+
+                            <TextField 
+                                fullWidth size="small" placeholder="确定密码 *" type="password" 
+                                error={!!errors.confirmPassword} helperText={errors.confirmPassword} 
+                                value={formData.confirmPassword} onBlur={() => handleBlur('confirmPassword')}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                    setFormData({ ...formData, confirmPassword: e.target.value });
+                                    if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: "" });
                                 }}
+                                slotProps={{ input: { startAdornment: <InputAdornment position="start"><LockIcon sx={{ color: '#8d6e63' }} /></InputAdornment> } }}
+                                sx={sharedInputSx}
+                            />
+
+                            <TextField 
+                                fullWidth size="small" placeholder="地址 (选填)" 
+                                value={formData.address} 
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, address: e.target.value })}
+                                slotProps={{ input: { startAdornment: <InputAdornment position="start"><HomeIcon sx={{ color: '#8d6e63' }} /></InputAdornment> } }}
+                                sx={sharedInputSx}
                             />
                         </Stack>
 
                         <Button 
-                            fullWidth 
-                            variant="contained" 
-                            size="large" 
-                            type="submit" 
+                            fullWidth variant="contained" type="submit" 
                             sx={{ 
-                                mt: 4, 
-                                mb: 2,
-                                py: 1.5,
-                                borderRadius: '50px',
-                                fontWeight: 'bold',
-                                fontSize: '1rem',
-                                // 改动 3: 按钮使用“大地暖棕色渐变”，与背景的绿色形成互补
+                                mt: 3, mb: 2, py: 1.5, borderRadius: '50px', fontWeight: 'bold', fontSize: '1rem',
                                 background: 'linear-gradient(135deg, #8d6e63 0%, #6d4c41 100%)',
                                 boxShadow: '0 8px 20px rgba(109, 76, 65, 0.25)',
-                                '&:hover': {
-                                    background: 'linear-gradient(135deg, #795548 0%, #5d4037 100%)',
-                                    boxShadow: '0 10px 25px rgba(109, 76, 65, 0.35)',
-                                }
+                                '&:hover': { background: 'linear-gradient(135deg, #795548 0%, #5d4037 100%)', boxShadow: '0 10px 25px rgba(109, 76, 65, 0.35)' }
                             }}
                         >
                             立即注册
                         </Button>
                     </Box>
 
-                    <Box sx={{ mt: 3, textAlign: 'center' }}>
+                    <Box sx={{ mt: 1, textAlign: 'center' }}>
                         <Typography variant="body2" sx={{ color: '#795548' }}>
                             已有账号？{' '}
                             <MuiLink component={Link} href="/login" sx={{ 
-                                color: '#4e342e', 
-                                fontWeight: '800',
-                                textDecoration: 'none',
-                                position: 'relative',
+                                color: '#4e342e', fontWeight: '800', textDecoration: 'none', position: 'relative',
                                 '&::after': {
-                                    content: '""',
-                                    position: 'absolute',
-                                    width: '100%',
-                                    height: '2px',
-                                    bottom: '-2px',
-                                    left: 0,
-                                    backgroundColor: '#8d6e63', // 棕色下划线
-                                    transform: 'scaleX(0)',
-                                    transition: 'transform 0.3s ease-in-out',
-                                    transformOrigin: 'right',
+                                    content: '""', position: 'absolute', width: '100%', height: '2px',
+                                    bottom: '-2px', left: 0, backgroundColor: '#8d6e63',
+                                    transform: 'scaleX(0)', transition: 'transform 0.3s ease-in-out', transformOrigin: 'right',
                                 },
-                                '&:hover::after': {
-                                    transform: 'scaleX(1)',
-                                    transformOrigin: 'left',
-                                }
+                                '&:hover::after': { transform: 'scaleX(1)', transformOrigin: 'left' }
                             }}>
                                 直接去登录
                             </MuiLink>
@@ -3706,15 +4603,50 @@ export default function RegisterPage() {
                     </Box>
                 </Paper>
 
-                <Snackbar 
-                    open={success} 
-                    autoHideDuration={3000} 
-                    onClose={() => setSuccess(false)}
-                    message="注册成功！" 
-                />
+                <Snackbar open={success} autoHideDuration={3000} onClose={() => setSuccess(false)} message="注册成功！" />
             </Container>
         </Box>
     );
+}
+</file>
+
+<file path="package.json">
+{
+  "name": "data_tracking",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@fontsource/roboto": "^5.2.9",
+    "@mui/icons-material": "^7.3.7",
+    "@mui/material": "^7.3.7",
+    "@mui/material-nextjs": "^7.3.7",
+    "@prisma/client": "6.19.1",
+    "chart.js": "^4.5.1",
+    "d3": "^7.9.0",
+    "next": "16.1.1",
+    "react": "19.2.3",
+    "react-chartjs-2": "^5.3.1",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@types/d3": "^7.4.3",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "dotenv": "^17.2.3",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.1",
+    "prisma": "6.19.1",
+    "typescript": "^5"
+  }
 }
 </file>
 

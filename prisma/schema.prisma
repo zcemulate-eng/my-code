@@ -10,13 +10,19 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String?  // 新增：姓名
-  email     String   @unique
-  password  String
-  role      String   @default("User")    // 新增：角色 (例如 Admin, Manager, User)
-  status    String   @default("Active")  // 新增：状态 (例如 Active, Disabled)
-  createdAt DateTime @default(now())
+  id           Int      @id @default(autoincrement())
+  name         String?  
+  email        String   @unique
+  password     String
+  phone        String?  
+  dob          String?  
+  address      String?  
+  gender       String?  // 👉 补充：性别
+  avatarUrl    String?  @db.LongText  // 存储用户头像路径
+  isFirstLogin Boolean  @default(true) // 核心：标记是否为首次登录
+  role         String   @default("User")
+  status       String   @default("Active")
+  createdAt    DateTime @default(now())
 }
 
 model Company {

@@ -1,35 +1,57 @@
+// src/components/Topbar.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AppBar, Toolbar, Box, IconButton, Avatar, Typography, 
-  Drawer, Stack, Button, Divider, Badge
+  Drawer, Stack, Button, Divider, Badge, Skeleton
 } from '@mui/material';
 import {
   Notifications as NotificationsIcon,
   Logout as LogoutIcon,
-  Person as PersonIcon,
   Settings as SettingsIcon,
   Close as CloseIcon
 } from '@mui/icons-material';
-import { logout } from '@/app/actions/auth';
-
-// 模拟当前登录用户数据 (后续可替换为从 Context 或 API 获取)
-const currentUser = {
-  name: 'Admin User',
-  email: 'admin@company.com',
-  role: 'Administrator',
-  department: 'HQ / IT Dept',
-  avatarUrl: '' // 如果有图片链接填这里，没有则显示首字母
-};
+import { logout, getCurrentUser } from '@/app/actions/auth';
+import { useRouter } from 'next/navigation';
 
 export default function TopBar() {
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const [user, setUser] = useState({
+    name: '',
+    email: '',
+    role: '',
+    phone: '',
+    avatarUrl: ''
+  });
+
+  // 组件挂载时获取当前真实登录用户数据
+  useEffect(() => {
+    const fetchUser = async () => {
+      const res = await getCurrentUser();
+      if (res.success && res.data) {
+        setUser({
+          name: res.data.name || '未知用户',
+          email: res.data.email || '',
+          role: res.data.role || 'User',
+          phone: res.data.phone || '未填写',
+          avatarUrl: res.data.avatarUrl || ''
+        });
+      }
+      setLoading(false);
+    };
+    fetchUser();
+  }, []);
 
   // 处理注销
   const handleLogout = async () => {
     await logout();
   };
+
+  // 提取首字母作为默认头像
+  const avatarChar = user.name ? user.name.charAt(0).toUpperCase() : 'U';
 
   return (
     <>
@@ -38,16 +60,14 @@ export default function TopBar() {
         position="sticky" 
         elevation={0}
         sx={{
-          backgroundColor: 'rgba(255, 253, 245, 0.8)', // 玻璃拟态背景
+          backgroundColor: 'rgba(255, 253, 245, 0.8)',
           backdropFilter: 'blur(20px)',
           borderBottom: '1px solid rgba(139, 115, 85, 0.1)',
-          color: '#5d4037',
-          zIndex: (theme) => theme.zIndex.drawer + 1 // 确保在侧边栏之上(可选)
+          color: '#5d4037'
         }}
       >
         <Toolbar sx={{ justifyContent: 'flex-end', gap: 2 }}>
           
-          {/* 这里预留空间给未来的扩展功能，比如通知铃铛 */}
           <IconButton size="small">
             <Badge variant="dot" color="error">
               <NotificationsIcon sx={{ color: '#8d6e63' }} />
@@ -68,20 +88,24 @@ export default function TopBar() {
               '&:hover': { backgroundColor: 'rgba(109, 140, 125, 0.1)' }
             }}
           >
-            <Typography variant="body2" sx={{ fontWeight: 600, display: { xs: 'none', sm: 'block' } }}>
-              {currentUser.name}
-            </Typography>
-            <Avatar 
-              sx={{ 
-                bgcolor: '#6d8c7d', 
-                width: 36, 
-                height: 36,
-                fontSize: '0.9rem'
-              }}
-              src={currentUser.avatarUrl}
-            >
-              {currentUser.name.charAt(0)}
-            </Avatar>
+            {loading ? (
+              <Skeleton variant="text" width={60} height={24} sx={{ display: { xs: 'none', sm: 'block' } }} />
+            ) : (
+              <Typography variant="body2" sx={{ fontWeight: 600, display: { xs: 'none', sm: 'block' } }}>
+                {user.name}
+              </Typography>
+            )}
+            
+            {loading ? (
+              <Skeleton variant="circular" width={36} height={36} />
+            ) : (
+              <Avatar 
+                sx={{ bgcolor: '#6d8c7d', width: 36, height: 36, fontSize: '0.9rem' }}
+                src={user.avatarUrl}
+              >
+                {avatarChar}
+              </Avatar>
+            )}
           </Box>
         </Toolbar>
       </AppBar>
@@ -98,7 +122,7 @@ export default function TopBar() {
         {/* 抽屉头部 */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
           <Typography variant="h6" sx={{ fontWeight: 800, color: '#5d4037' }}>
-            My Profile
+            个人资料
           </Typography>
           <IconButton onClick={() => setOpen(false)} size="small">
             <CloseIcon />
@@ -108,19 +132,33 @@ export default function TopBar() {
         {/* 个人信息卡片区域 */}
         <Stack spacing={3} sx={{ flexGrow: 1 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, mb: 2 }}>
-            <Avatar 
-              sx={{ width: 80, height: 80, bgcolor: '#6d8c7d', fontSize: '2rem' }}
-              src={currentUser.avatarUrl}
-            >
-              {currentUser.name.charAt(0)}
-            </Avatar>
+            {loading ? (
+              <Skeleton variant="circular" width={80} height={80} />
+            ) : (
+              <Avatar 
+                sx={{ width: 80, height: 80, bgcolor: '#6d8c7d', fontSize: '2rem', boxShadow: '0 8px 24px rgba(109, 140, 125, 0.2)' }}
+                src={user.avatarUrl}
+              >
+                {avatarChar}
+              </Avatar>
+            )}
+            
             <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="h6" sx={{ fontWeight: 700, color: '#5d4037' }}>
-                {currentUser.name}
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#8d6e63' }}>
-                {currentUser.role}
-              </Typography>
+              {loading ? (
+                <>
+                  <Skeleton variant="text" width={100} height={32} sx={{ mx: 'auto' }} />
+                  <Skeleton variant="text" width={60} height={20} sx={{ mx: 'auto' }} />
+                </>
+              ) : (
+                <>
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#5d4037' }}>
+                    {user.name}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#8d6e63', fontWeight: 500 }}>
+                    {user.role}
+                  </Typography>
+                </>
+              )}
             </Box>
           </Box>
 
@@ -129,32 +167,35 @@ export default function TopBar() {
           {/* 详细信息列表 */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Box>
-              <Typography variant="caption" sx={{ color: '#8d6e63', mb: 0.5, display: 'block' }}>Email</Typography>
-              <Typography variant="body2" sx={{ fontWeight: 500 }}>{currentUser.email}</Typography>
+              <Typography variant="caption" sx={{ color: '#8d6e63', mb: 0.5, display: 'block' }}>登录邮箱</Typography>
+              {loading ? <Skeleton variant="text" width="80%" /> : <Typography variant="body2" sx={{ fontWeight: 500, color: '#4e342e' }}>{user.email}</Typography>}
             </Box>
             <Box>
-              <Typography variant="caption" sx={{ color: '#8d6e63', mb: 0.5, display: 'block' }}>Department</Typography>
-              <Typography variant="body2" sx={{ fontWeight: 500 }}>{currentUser.department}</Typography>
+              <Typography variant="caption" sx={{ color: '#8d6e63', mb: 0.5, display: 'block' }}>联系电话</Typography>
+              {loading ? <Skeleton variant="text" width="50%" /> : <Typography variant="body2" sx={{ fontWeight: 500, color: '#4e342e' }}>{user.phone}</Typography>}
             </Box>
           </Box>
         </Stack>
 
         {/* 底部按钮区域 */}
         <Stack spacing={2} sx={{ mt: 4 }}>
-          {/* 预留设置按钮 */}
           <Button 
             variant="outlined" 
             startIcon={<SettingsIcon />}
+            onClick={() => {
+                setOpen(false); // 关闭抽屉
+                router.push('/account'); // 跳转到个人资料页
+            }}
             sx={{ 
               color: '#5d4037', 
               borderColor: 'rgba(139, 115, 85, 0.3)',
-              borderRadius: '12px'
+              borderRadius: '12px',
+              '&:hover': { borderColor: '#5d4037', backgroundColor: 'rgba(93, 64, 55, 0.04)' }
             }}
           >
-            Account Settings
+            账号设置
           </Button>
 
-          {/* 注销按钮 */}
           <Button 
             variant="contained" 
             color="error" 
@@ -164,10 +205,10 @@ export default function TopBar() {
               borderRadius: '12px', 
               backgroundColor: '#ff8a65',
               boxShadow: 'none',
-              '&:hover': { backgroundColor: '#ff7043' }
+              '&:hover': { backgroundColor: '#ff7043', boxShadow: '0 4px 12px rgba(255, 138, 101, 0.3)' }
             }}
           >
-            Sign Out
+            安全退出
           </Button>
         </Stack>
       </Drawer>

@@ -248,6 +248,7 @@ export default function CompanyBarChart() {
                 <>
                     <Typography variant="body2" fontWeight="bold" color={earthColors.dark}>维度 (X轴):</Typography>
                     <FormControl size="small" sx={{ minWidth: 140 }}>
+                        {/* @ts-expect-error: MUI Select React 19 compatibility */}
                         <Select 
                             value={dimension} 
                             onChange={handleDimensionChange}
@@ -283,14 +284,15 @@ export default function CompanyBarChart() {
                 <Grid size={{ xs: 12, md: 4 }}>
                     <FormControl fullWidth size="small">
                         <InputLabel>包含等级</InputLabel>
+                        {/* @ts-expect-error: MUI Select React 19 compatibility */}
                         <Select
                             multiple
                             value={filters.levels}
                             onChange={handleMultiSelectChange('levels')}
                             input={<OutlinedInput label="包含等级" />}
-                            renderValue={(selected) => (
+                            renderValue={(selected: number[]) => (
                                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                    {(selected as number[]).map((value) => (
+                                    {selected.map((value) => (
                                         <Chip key={value} label={value} size="small" sx={{ bgcolor: earthColors.light, color: earthColors.dark, fontWeight: 'bold' }} />
                                     ))}
                                 </Box>
@@ -306,12 +308,13 @@ export default function CompanyBarChart() {
                 <Grid size={{ xs: 12, md: 4 }}>
                     <FormControl fullWidth size="small">
                         <InputLabel>包含国家</InputLabel>
+                        {/* @ts-expect-error: MUI Select React 19 compatibility */}
                         <Select
                             multiple
                             value={filters.countries}
                             onChange={handleMultiSelectChange('countries')}
                             input={<OutlinedInput label="包含国家" />}
-                            renderValue={(selected) => (selected as string[]).join(', ')}
+                            renderValue={(selected: string[]) => selected.join(', ')}
                         >
                             {options.countries.map((c) => (
                                 <MenuItem key={c} value={c}>{c}</MenuItem>
@@ -323,12 +326,13 @@ export default function CompanyBarChart() {
                 <Grid size={{ xs: 12, md: 4 }}>
                     <FormControl fullWidth size="small">
                         <InputLabel>包含城市</InputLabel>
+                        {/* @ts-expect-error: MUI Select React 19 compatibility */}
                         <Select
                             multiple
                             value={filters.cities}
                             onChange={handleMultiSelectChange('cities')}
                             input={<OutlinedInput label="包含城市" />}
-                            renderValue={(selected) => (selected as string[]).join(', ')}
+                            renderValue={(selected: string[]) => selected.join(', ')}
                             disabled={options.cities.length === 0}
                         >
                             {options.cities.map((c) => (
