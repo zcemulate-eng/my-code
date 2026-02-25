@@ -2,14 +2,17 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-    Box, Card, CardContent, Typography, TextField, Button, 
-    Avatar, IconButton, MenuItem, FormControl, 
-    Stack, Snackbar, Alert, CircularProgress, Grid 
+import {
+    Box, Card, CardContent, Typography, TextField, Button,
+    Avatar, IconButton, MenuItem, FormControl,
+    Stack, Snackbar, Alert, CircularProgress, Grid
 } from '@mui/material';
+
+import { useRouter } from 'next/navigation';
+import CloseIcon from '@mui/icons-material/Close';
 import Select from '@mui/material/Select';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
-import { getCurrentUser, updateAccount } from '@/app/actions/auth'; 
+import { getCurrentUser, updateAccount } from '@/app/actions/auth';
 
 const inputSx = {
     '& .MuiOutlinedInput-root': {
@@ -23,10 +26,11 @@ const inputSx = {
 };
 
 export default function AccountManagementPage() {
+    const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [toast, setToast] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
-    
+
     // 表单状态
     const [formData, setFormData] = useState({
         name: '', email: '', phone: '', gender: '', dob: '', address: '', avatarUrl: ''
@@ -58,14 +62,14 @@ export default function AccountManagementPage() {
     }, []);
 
     const handleChange = (field: string) => (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { value: string } }
-) => {
-    setFormData(prev => ({ ...prev, [field]: e.target.value }));
-    
-    if (field === 'name' || field === 'phone') {
-        setErrors(prev => ({ ...prev, [field]: '' }));
-    }
-};
+        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { value: string } }
+    ) => {
+        setFormData(prev => ({ ...prev, [field]: e.target.value }));
+
+        if (field === 'name' || field === 'phone') {
+            setErrors(prev => ({ ...prev, [field]: '' }));
+        }
+    };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -109,7 +113,7 @@ export default function AccountManagementPage() {
                 address: formData.address,
                 avatarUrl: formData.avatarUrl
             });
-            
+
             if (result.success) {
                 setToast({ open: true, message: result.message || '更新成功', severity: 'success' });
                 setTimeout(() => window.location.reload(), 1500);
@@ -137,35 +141,52 @@ export default function AccountManagementPage() {
 
     return (
         <Box sx={{ maxWidth: 1200, margin: '0 auto', pb: 5 }}>
-            <Box sx={{ mb: 4 }}>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: '#4e342e', mb: 1, letterSpacing: '-0.5px' }}>
-                    Account
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#8d6e63' }}>
-                    Dashboard / User / Account
-                </Typography>
+            <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <Box>
+                    <Typography variant="h4" sx={{ fontWeight: 800, color: '#4e342e', mb: 1, letterSpacing: '-0.5px' }}>
+                        Account
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#8d6e63' }}>
+                        Dashboard / User / Account
+                    </Typography>
+                </Box>
+
+                <IconButton
+                    onClick={() => router.push('/dashboard')}
+                    sx={{
+                        color: '#8d6e63',
+                        backgroundColor: 'rgba(141, 110, 99, 0.08)',
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                            backgroundColor: 'rgba(141, 110, 99, 0.2)',
+                            transform: 'rotate(90deg)' // 加个小小的旋转动画，手感更好
+                        }
+                    }}
+                >
+                    <CloseIcon />
+                </IconButton>
             </Box>
 
             <Grid container spacing={4}>
                 {/* 左侧区块 (1/3) 头像 */}
                 <Grid size={{ xs: 12, md: 4 }}>
-                    <Card elevation={0} sx={{ 
+                    <Card elevation={0} sx={{
                         borderRadius: '16px', p: 4, textAlign: 'center',
                         backgroundColor: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(20px)',
-                        border: '1px solid rgba(139, 115, 85, 0.08)', boxShadow: '0 8px 24px rgba(139, 115, 85, 0.04)' 
+                        border: '1px solid rgba(139, 115, 85, 0.08)', boxShadow: '0 8px 24px rgba(139, 115, 85, 0.04)'
                     }}>
                         <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', p: 0 }}>
                             <Box sx={{ position: 'relative', p: 1, border: '1px dashed rgba(141, 110, 99, 0.3)', borderRadius: '50%', mb: 3 }}>
-                                <Avatar 
+                                <Avatar
                                     src={formData.avatarUrl || undefined}
                                     sx={{ width: 140, height: 140, bgcolor: '#efebe9', fontSize: '3rem', color: '#a1887f' }}
                                 >
                                     {formData.name ? formData.name.charAt(0).toUpperCase() : 'U'}
                                 </Avatar>
-                                <IconButton 
-                                    component="label" 
-                                    sx={{ 
-                                        position: 'absolute', bottom: 10, right: 10, bgcolor: '#6d8c7d', color: '#fff', 
+                                <IconButton
+                                    component="label"
+                                    sx={{
+                                        position: 'absolute', bottom: 10, right: 10, bgcolor: '#6d8c7d', color: '#fff',
                                         border: '3px solid #fff', width: 40, height: 40, '&:hover': { bgcolor: '#5a7568' },
                                         boxShadow: '0 4px 12px rgba(109, 140, 125, 0.4)'
                                     }}
@@ -183,10 +204,10 @@ export default function AccountManagementPage() {
 
                 {/* 右侧区块 (2/3) 表单 */}
                 <Grid size={{ xs: 12, md: 8 }}>
-                    <Card elevation={0} sx={{ 
+                    <Card elevation={0} sx={{
                         borderRadius: '16px', p: { xs: 3, md: 4 }, backgroundColor: 'rgba(255, 255, 255, 0.9)',
                         backdropFilter: 'blur(20px)', border: '1px solid rgba(139, 115, 85, 0.08)',
-                        boxShadow: '0 8px 24px rgba(139, 115, 85, 0.04)' 
+                        boxShadow: '0 8px 24px rgba(139, 115, 85, 0.04)'
                     }}>
                         <CardContent sx={{ p: 0 }}>
                             <Grid container spacing={3}>
@@ -195,9 +216,9 @@ export default function AccountManagementPage() {
                                     <Typography variant="caption" sx={{ color: '#795548', display: 'block', mb: 1, fontWeight: 'bold' }}>
                                         登录邮箱
                                     </Typography>
-                                    <TextField 
+                                    <TextField
                                         fullWidth size="small" disabled
-                                        value={formData.email} 
+                                        value={formData.email}
                                         sx={{
                                             '& .MuiOutlinedInput-root': {
                                                 borderRadius: '8px', backgroundColor: 'rgba(141, 110, 99, 0.05)',
@@ -213,8 +234,8 @@ export default function AccountManagementPage() {
                                     <Typography variant="caption" sx={{ color: '#795548', display: 'block', mb: 1, fontWeight: 'bold' }}>
                                         姓名 / 昵称
                                     </Typography>
-                                    <TextField 
-                                        fullWidth size="small" 
+                                    <TextField
+                                        fullWidth size="small"
                                         value={formData.name} onChange={handleChange('name')}
                                         error={!!errors.name} helperText={errors.name}
                                         sx={inputSx}
@@ -226,8 +247,8 @@ export default function AccountManagementPage() {
                                     <Typography variant="caption" sx={{ color: '#795548', display: 'block', mb: 1, fontWeight: 'bold' }}>
                                         电话号码
                                     </Typography>
-                                    <TextField 
-                                        fullWidth size="small" 
+                                    <TextField
+                                        fullWidth size="small"
                                         value={formData.phone} onChange={handleChange('phone')}
                                         error={!!errors.phone} helperText={errors.phone}
                                         sx={inputSx}
@@ -254,8 +275,8 @@ export default function AccountManagementPage() {
                                     <Typography variant="caption" sx={{ color: '#795548', display: 'block', mb: 1, fontWeight: 'bold' }}>
                                         出生年月
                                     </Typography>
-                                    <TextField 
-                                        fullWidth size="small" 
+                                    <TextField
+                                        fullWidth size="small"
                                         type="date"
                                         value={formData.dob} onChange={handleChange('dob')}
                                         // 解决日期 placeholder 和文字重叠的问题
@@ -269,8 +290,8 @@ export default function AccountManagementPage() {
                                     <Typography variant="caption" sx={{ color: '#795548', display: 'block', mb: 1, fontWeight: 'bold' }}>
                                         详细地址
                                     </Typography>
-                                    <TextField 
-                                        fullWidth size="small" 
+                                    <TextField
+                                        fullWidth size="small"
                                         value={formData.address} onChange={handleChange('address')}
                                         sx={inputSx}
                                     />
@@ -279,9 +300,9 @@ export default function AccountManagementPage() {
 
                             {/* 操作区域 */}
                             <Stack direction="row" justifyContent="flex-end" sx={{ mt: 5 }}>
-                                <Button 
+                                <Button
                                     variant="contained" onClick={handleSubmit} disabled={saving}
-                                    sx={{ 
+                                    sx={{
                                         bgcolor: '#6d8c7d', borderRadius: '8px', px: 4, py: 1.2, fontWeight: 'bold', textTransform: 'none',
                                         boxShadow: '0 8px 16px rgba(109, 140, 125, 0.24)',
                                         '&:hover': { bgcolor: '#5a7568', boxShadow: '0 8px 16px rgba(109, 140, 125, 0.4)' },

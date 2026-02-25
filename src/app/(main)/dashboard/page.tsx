@@ -321,6 +321,7 @@ export default function DashboardPage() {
                 <Typography variant="body1" sx={{ color: '#8d6e63' }}>供应链公司实时数据概览</Typography>
             </Box>
 
+            {/* @ts-expect-error: MUI Select React 19 compatibility */}
             {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
             {/* Grid v2 修正点：

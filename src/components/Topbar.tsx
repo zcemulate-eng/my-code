@@ -4,10 +4,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   AppBar, Toolbar, Box, IconButton, Avatar, Typography, 
-  Drawer, Stack, Button, Divider, Badge, Skeleton
+  Drawer, Stack, Button, Divider, Skeleton
 } from '@mui/material';
 import {
-  Notifications as NotificationsIcon,
   Logout as LogoutIcon,
   Settings as SettingsIcon,
   Close as CloseIcon
@@ -68,11 +67,6 @@ export default function TopBar() {
       >
         <Toolbar sx={{ justifyContent: 'flex-end', gap: 2 }}>
           
-          <IconButton size="small">
-            <Badge variant="dot" color="error">
-              <NotificationsIcon sx={{ color: '#8d6e63' }} />
-            </Badge>
-          </IconButton>
 
           {/* 头像区域 (点击触发抽屉) */}
           <Box 
