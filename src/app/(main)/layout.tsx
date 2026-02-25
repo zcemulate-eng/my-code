@@ -9,6 +9,7 @@ import {
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import TopBar from '@/components/Topbar'; // <--- 1. 引入 TopBar 组件
+import WelcomeModal from '@/components/WelcomeModal';
 
 const DRAWER_WIDTH = 280;
 
@@ -86,8 +87,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 sx={{ 
                     flexGrow: 1, 
                     width: '100%', 
-                    display: 'flex',        // <--- 2. 改为 Flex 布局
-                    flexDirection: 'column' // <--- 3. 垂直排列 (TopBar 在上，内容在下)
+                    display: 'flex',       
+                    flexDirection: 'column' 
                 }}
             >
                 {/* A. 顶部栏 */}
@@ -96,10 +97,13 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 {/* B. 页面实际内容 */}
                 <Box sx={{ 
                     flexGrow: 1, 
-                    p: { xs: 2, md: 5 }, // <--- 4. Padding 移到这里，防止 TopBar 被挤压
-                    overflow: 'auto'     // 内容过多时出现滚动条
+                    p: { xs: 2, md: 5 }, 
+                    overflow: 'auto'     
                 }}>
                     {children}
+                    
+                    {/* 👉 2. 新增：将弹窗挂载到全局后台布局中 */}
+                    <WelcomeModal />
                 </Box>
             </Box>
         </Box>

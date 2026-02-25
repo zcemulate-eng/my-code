@@ -32,7 +32,8 @@ export async function registerUser(formData: any) {
                 name: formData.username,      // 映射前端的 username 到数据库的 name
                 phone: formData.phone,        
                 dob: formData.dob || null,    
-                address: formData.address || null 
+                address: formData.address || null,
+                isFirstLogin: true 
             } 
         });
         
@@ -44,11 +45,17 @@ export async function registerUser(formData: any) {
 }
 
 // 👉 升级：真实的登录并签发 Cookie
+// 👉 升级：真实的登录并签发 Cookie，并增加账号状态校验
 export async function loginUser(formData: any) {
 	try {
 		const user = await prisma.user.findUnique({ where: { email: formData.email } });
 		if (!user) return { success: false, message: "用户不存在" };
 		if (user.password !== formData.password) return { success: false, message: "密码错误" };
+        
+        // 👉 新增核心拦截：如果账号状态为 Inactive，拒绝登录
+        if (user.status === 'Inactive') {
+            return { success: false, message: "该账号已被停用，请联系管理员" };
+        }
         
         // 登录成功，将用户 ID 存入 HttpOnly Cookie 中（真实的会话保持）
         const cookieStore = await cookies();

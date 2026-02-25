@@ -62,12 +62,12 @@ function Row({ row }: { row: CompanyData }) {
 	const empCount = row.employees || 0;
 	const efficiency = empCount > 0 ? row.annualRevenue / empCount : 0;
 
-	// 动态背景色逻辑 (热力图效果)
+	// 动态背景色逻辑 (热力图效果) - 依据真实数据量级调整了阈值
 	const getEfficiencyColor = (val: number) => {
-		if (val > 2000) return 'rgba(109, 140, 125, 0.4)'; // 深绿 (极高)
-		if (val > 1000) return 'rgba(109, 140, 125, 0.2)'; // 浅绿 (高)
-		if (val > 500) return 'rgba(255, 253, 245, 0.5)'; // 米色 (正常)
-		return 'rgba(255, 171, 145, 0.2)'; // 淡红 (低)
+		if (val > 300000) return 'rgba(109, 140, 125, 0.4)';  // 深绿 (极高，> 30万)
+		if (val > 150000) return 'rgba(109, 140, 125, 0.15)'; // 浅绿 (优秀，> 15万)
+		if (val > 100000) return 'rgba(255, 253, 245, 0.8)';  // 米色 (正常，> 10万)
+		return 'rgba(255, 171, 145, 0.3)';                    // 淡红 (偏低，< 10万)
 	};
 
 	return (
@@ -339,6 +339,10 @@ export default function CompaniesPage() {
 
 				{/* --- Pagination --- */}
 				<TablePagination
+					id="companies-table-pagination"
+					SelectProps={{
+						id: "companies-table-pagination-select"
+					}}
 					rowsPerPageOptions={[10, 25, 50]}
 					component="div"
 					count={totalCount}

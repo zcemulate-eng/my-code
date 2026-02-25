@@ -45,7 +45,9 @@ export default function LoginPage() {
         
         if (result.success) {
             setSuccess(true);
-            setTimeout(() => router.push('/dashboard'), 1500);
+            setTimeout(() => {
+				window.location.href = 'dashboard';
+			}, 1500);
         } else {
             setServerError(result.message || "登录失败，请检查账号密码");
         }

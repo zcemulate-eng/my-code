@@ -6,6 +6,7 @@ import {
     Link as MuiLink, Stack, InputAdornment, Grid 
 } from '@mui/material';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 // 图标导入
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
@@ -30,6 +31,7 @@ const sharedInputSx = {
 };
 
 export default function RegisterPage() {
+    const router = useRouter(); // 👉 新增：初始化路由
     const [formData, setFormData] = useState({ 
         username: '', email: '', phone: '', dob: '', password: '', confirmPassword: '', address: '' 
     });
@@ -100,8 +102,13 @@ export default function RegisterPage() {
             if (result.success) {
                 setSuccess(true);
                 setFormData({ username: '', email: '', phone: '', dob: '', password: '', confirmPassword: '', address: '' });
+                
+                // 👉 新增核心逻辑：延迟 1.5 秒后自动跳转到登录页
+                setTimeout(() => {
+                    router.push('/login');
+                }, 1500);
+                
             } else {
-                // 👉 新增：如果是昵称被占用，直接挂载到输入框下方红字提示
                 if (result.message === "该昵称已被人使用") {
                     setErrors(prev => ({ ...prev, username: result.message }));
                 } else {

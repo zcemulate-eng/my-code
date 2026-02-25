@@ -163,6 +163,7 @@ export default function UsersPage() {
                 }}
             >
                 <TextField
+                    id="search-user-input"
                     placeholder="Search by name or email..."
                     variant="outlined"
                     size="small"
@@ -187,6 +188,7 @@ export default function UsersPage() {
                     {/* @ts-expect-error: MUI Select React 19 compatibility */}
                     <Select
                         labelId="role-filter-label"
+                        id="role-filter-select"
                         multiple
                         value={selectedRoles}
                         onChange={(e: { target: { value: string | string[] } }) => setSelectedRoles(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value as string[])}
@@ -279,6 +281,10 @@ export default function UsersPage() {
                     </Table>
                 </TableContainer>
                 <TablePagination
+                    id="users-table-pagination"
+                    SelectProps={{
+                        id: "users-table-pagination-select"
+                    }}
                     component="div" count={total} page={page} rowsPerPage={rowsPerPage}
                     onPageChange={(e: unknown, newPage: number) => setPage(newPage)}
                     onRowsPerPageChange={(e: React.ChangeEvent<HTMLInputElement>) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
