@@ -39,18 +39,18 @@ export default function LoginPage() {
 	const handleLogin = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setServerError('');
-		
-        // 调用真实的后端验证
-		const result = await loginUser(formData); 
-        
-        if (result.success) {
-            setSuccess(true);
-            setTimeout(() => {
+
+		// 调用真实的后端验证
+		const result = await loginUser(formData);
+
+		if (result.success) {
+			setSuccess(true);
+			setTimeout(() => {
 				window.location.href = 'dashboard';
 			}, 1500);
-        } else {
-            setServerError(result.message || "登录失败，请检查账号密码");
-        }
+		} else {
+			setServerError(result.message || "登录失败，请检查账号密码");
+		}
 	};
 
 	return (
@@ -71,19 +71,20 @@ export default function LoginPage() {
 				</Box>
 
 				{serverError && (
-                    /* 修复 2：使用 @ts-expect-error 绕过 MUI Alert 在 React 19 中的子组件类型报错 */
-                    // @ts-expect-error: Known type issue with MUI Alert and React 19
-                    <Alert severity="error" variant="filled" sx={{ mb: 3, borderRadius: '12px' }}>
-                        {serverError}
-                    </Alert>
-                )}
+					/* 修复 2：使用 @ts-expect-error 绕过 MUI Alert 在 React 19 中的子组件类型报错 */
+					// @ts-expect-error: Known type issue with MUI Alert and React 19
+					<Alert severity="error" variant="filled" sx={{ mb: 3, borderRadius: '12px' }}>
+						{serverError}
+					</Alert>
+				)}
 
 				<Box component="form" onSubmit={handleLogin} noValidate>
 					<Stack spacing={3}>
 						<TextField
+							id="login-email"
 							fullWidth placeholder="邮箱" error={!!errors.email} helperText={errors.email}
 							value={formData.email} onBlur={() => handleBlur('email')}
-                            /* 修复 3：明确 e 的类型 */
+							/* 修复 3：明确 e 的类型 */
 							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, email: e.target.value })}
 							slotProps={{ input: { startAdornment: <InputAdornment position="start"><EmailIcon sx={{ color: '#8d6e63' }} /></InputAdornment> } }}
 							sx={{
@@ -93,9 +94,10 @@ export default function LoginPage() {
 						/>
 
 						<TextField
+							id="login-password"
 							fullWidth placeholder="密码" type="password" error={!!errors.password} helperText={errors.password}
 							value={formData.password} onBlur={() => handleBlur('password')}
-                            /* 修复 3：明确 e 的类型 */
+							/* 修复 3：明确 e 的类型 */
 							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, password: e.target.value })}
 							slotProps={{ input: { startAdornment: <InputAdornment position="start"><LockIcon sx={{ color: '#8d6e63' }} /></InputAdornment> } }}
 							sx={{

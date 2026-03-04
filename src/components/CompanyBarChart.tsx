@@ -246,6 +246,7 @@ export default function CompanyBarChart() {
               <FormControl size="small" sx={{ minWidth: 140 }}>
                 {/* @ts-expect-error: MUI Select React 19 compatibility */}
                 <Select
+                  id="dimension-select-input"
                   value={dimension}
                   onChange={handleDimensionChange}
                   sx={{ color: earthColors.dark, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(141,110,99,0.3)' } }}
@@ -347,25 +348,25 @@ export default function CompanyBarChart() {
 
             <Grid size={{ xs: 12, md: 4 }}>
               <Stack direction="row" spacing={1} alignItems="center">
-                <TextField label="成立年份 (始)" size="small" type="number" fullWidth value={filters.foundedYear.start} onChange={handleRangeChange('foundedYear', 'start')} />
+                <TextField id="founded-year-start" label="成立年份 (始)" size="small" type="number" fullWidth value={filters.foundedYear.start} onChange={handleRangeChange('foundedYear', 'start')} />
                 <Typography color={earthColors.primary}>-</Typography>
-                <TextField label="止" size="small" type="number" fullWidth value={filters.foundedYear.end} onChange={handleRangeChange('foundedYear', 'end')} />
+                <TextField id="founded-year-end" label="止" size="small" type="number" fullWidth value={filters.foundedYear.end} onChange={handleRangeChange('foundedYear', 'end')} />
               </Stack>
             </Grid>
 
             <Grid size={{ xs: 12, md: 4 }}>
               <Stack direction="row" spacing={1} alignItems="center">
-                <TextField label="年收入 (Min)" size="small" type="number" fullWidth value={filters.annualRevenue.min} onChange={handleRangeChange('annualRevenue', 'min')} />
+                <TextField id="annual-revenue-min" label="年收入 (Min)" size="small" type="number" fullWidth value={filters.annualRevenue.min} onChange={handleRangeChange('annualRevenue', 'min')} />
                 <Typography color={earthColors.primary}>-</Typography>
-                <TextField label="Max" size="small" type="number" fullWidth value={filters.annualRevenue.max} onChange={handleRangeChange('annualRevenue', 'max')} />
+                <TextField id="annual-revenue-max" label="Max" size="small" type="number" fullWidth value={filters.annualRevenue.max} onChange={handleRangeChange('annualRevenue', 'max')} />
               </Stack>
             </Grid>
 
             <Grid size={{ xs: 12, md: 4 }}>
               <Stack direction="row" spacing={1} alignItems="center">
-                <TextField label="员工数 (Min)" size="small" type="number" fullWidth value={filters.employees.min} onChange={handleRangeChange('employees', 'min')} />
+                <TextField id="employees-min" label="员工数 (Min)" size="small" type="number" fullWidth value={filters.employees.min} onChange={handleRangeChange('employees', 'min')} />
                 <Typography color={earthColors.primary}>-</Typography>
-                <TextField label="Max" size="small" type="number" fullWidth value={filters.employees.max} onChange={handleRangeChange('employees', 'max')} />
+                <TextField id="employees-max" label="Max" size="small" type="number" fullWidth value={filters.employees.max} onChange={handleRangeChange('employees', 'max')} />
               </Stack>
             </Grid>
           </Grid>

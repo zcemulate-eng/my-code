@@ -182,11 +182,11 @@ export default function CompaniesPage() {
 
 			{/* Filter Bar (与原来完全相同) */}
 			<Paper elevation={0} sx={{ p: 3, mb: 4, borderRadius: '24px', backgroundColor: 'rgba(255, 253, 245, 0.6)', backdropFilter: 'blur(20px)', border: '1px solid rgba(139, 115, 85, 0.1)', display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-				<TextField placeholder="Search company name..." variant="outlined" size="small" value={searchName} onChange={(e: any) => setSearchName(e.target.value)} sx={{ flexGrow: 1, maxWidth: '400px', '& .MuiOutlinedInput-root': { borderRadius: '50px', backgroundColor: '#fff' } }} InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ color: '#8d6e63' }} /></InputAdornment> }} />
+				<TextField id="company-search-input" placeholder="Search company name..." variant="outlined" size="small" value={searchName} onChange={(e: any) => setSearchName(e.target.value)} sx={{ flexGrow: 1, maxWidth: '400px', '& .MuiOutlinedInput-root': { borderRadius: '50px', backgroundColor: '#fff' } }} InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ color: '#8d6e63' }} /></InputAdornment> }} />
 				<FormControl size="small" sx={{ minWidth: 220 }}>
 					<InputLabel id="level-filter-label" sx={{ color: '#8d6e63' }}>Filter by Level</InputLabel>
 					{/* @ts-expect-error: MUI Select React 19 compatibility */}
-					<Select labelId="level-filter-label" multiple value={selectedLevels} onChange={(e) => setSelectedLevels(e.target.value as number[])} input={<OutlinedInput label="Filter by Level" />} renderValue={(selected: number[]) => (<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>{selected.map((value: number) => (<Chip key={value} label={`Level ${value}`} size="small" sx={{ backgroundColor: '#e0dbd6', color: '#4e342e' }} />))}</Box>)} sx={{ borderRadius: '50px', backgroundColor: '#fff' }}>
+					<Select labelId="level-filter-label" id="level-filter-select" multiple value={selectedLevels} onChange={(e) => setSelectedLevels(e.target.value as number[])} input={<OutlinedInput label="Filter by Level" />} renderValue={(selected: number[]) => (<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>{selected.map((value: number) => (<Chip key={value} label={`Level ${value}`} size="small" sx={{ backgroundColor: '#e0dbd6', color: '#4e342e' }} />))}</Box>)} sx={{ borderRadius: '50px', backgroundColor: '#fff' }}>
 						{allLevels.map((lvl) => (<MenuItem key={lvl} value={lvl} sx={{ borderRadius: "10px" }}>Level {lvl}</MenuItem>))}
 					</Select>
 				</FormControl>
@@ -233,16 +233,15 @@ export default function CompaniesPage() {
 					<IconButton onClick={() => setDrawerOpen(false)} size="small"><CloseIcon /></IconButton>
 				</Box>
 				<Grid container spacing={2}>
-					{/* 👇 修复点：将 item xs={6} 替换为 size={{ xs: 6 }} */}
-					<Grid size={{ xs: 6 }}><TextField label="Company Code *" size="small" fullWidth value={formData.companyCode} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, companyCode: e.target.value })} sx={{ bgcolor: '#fff' }} disabled={!!editingId} helperText="系统唯一标识" /></Grid>
-					<Grid size={{ xs: 6 }}><TextField label="Level *" type="number" size="small" fullWidth value={formData.level} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, level: e.target.value })} sx={{ bgcolor: '#fff' }} helperText="1代表顶层节点" /></Grid>
-					<Grid size={{ xs: 12 }}><TextField label="Company Name *" size="small" fullWidth value={formData.name} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, name: e.target.value })} sx={{ bgcolor: '#fff' }} /></Grid>
-					<Grid size={{ xs: 6 }}><TextField label="Country" size="small" fullWidth value={formData.country} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, country: e.target.value })} sx={{ bgcolor: '#fff' }} /></Grid>
-					<Grid size={{ xs: 6 }}><TextField label="City" size="small" fullWidth value={formData.city} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, city: e.target.value })} sx={{ bgcolor: '#fff' }} /></Grid>
-					<Grid size={{ xs: 12 }}><TextField label="Founded Year" type="number" size="small" fullWidth value={formData.foundedYear} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, foundedYear: e.target.value })} sx={{ bgcolor: '#fff' }} /></Grid>
-					<Grid size={{ xs: 6 }}><TextField label="Annual Revenue (¥)" type="number" size="small" fullWidth value={formData.annualRevenue} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, annualRevenue: e.target.value })} sx={{ bgcolor: '#fff' }} /></Grid>
-					<Grid size={{ xs: 6 }}><TextField label="Employees" type="number" size="small" fullWidth value={formData.employees} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, employees: e.target.value })} sx={{ bgcolor: '#fff' }} /></Grid>
-					<Grid size={{ xs: 12 }}><TextField label="Parent ID (可选)" type="number" size="small" fullWidth value={formData.parentId} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, parentId: e.target.value })} sx={{ bgcolor: '#fff' }} helperText="关联的父公司数据库 ID（用于气泡图树状结构）" /></Grid>
+					<Grid size={{ xs: 6 }}><TextField id="comp-code" label="Company Code *" size="small" fullWidth value={formData.companyCode} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, companyCode: e.target.value })} sx={{ bgcolor: '#fff' }} disabled={!!editingId} helperText="系统唯一标识" /></Grid>
+					<Grid size={{ xs: 6 }}><TextField id="comp-level" label="Level *" type="number" size="small" fullWidth value={formData.level} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, level: e.target.value })} sx={{ bgcolor: '#fff' }} helperText="1代表顶层节点" /></Grid>
+					<Grid size={{ xs: 12 }}><TextField id="comp-name" label="Company Name *" size="small" fullWidth value={formData.name} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, name: e.target.value })} sx={{ bgcolor: '#fff' }} /></Grid>
+					<Grid size={{ xs: 6 }}><TextField id="comp-country" label="Country" size="small" fullWidth value={formData.country} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, country: e.target.value })} sx={{ bgcolor: '#fff' }} /></Grid>
+					<Grid size={{ xs: 6 }}><TextField id="comp-city" label="City" size="small" fullWidth value={formData.city} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, city: e.target.value })} sx={{ bgcolor: '#fff' }} /></Grid>
+					<Grid size={{ xs: 12 }}><TextField id="comp-founded" label="Founded Year" type="number" size="small" fullWidth value={formData.foundedYear} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, foundedYear: e.target.value })} sx={{ bgcolor: '#fff' }} /></Grid>
+					<Grid size={{ xs: 6 }}><TextField id="comp-revenue" label="Annual Revenue (¥)" type="number" size="small" fullWidth value={formData.annualRevenue} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, annualRevenue: e.target.value })} sx={{ bgcolor: '#fff' }} /></Grid>
+					<Grid size={{ xs: 6 }}><TextField id="comp-employees" label="Employees" type="number" size="small" fullWidth value={formData.employees} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, employees: e.target.value })} sx={{ bgcolor: '#fff' }} /></Grid>
+					<Grid size={{ xs: 12 }}><TextField id="comp-parent" label="Parent ID (可选)" type="number" size="small" fullWidth value={formData.parentId} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, parentId: e.target.value })} sx={{ bgcolor: '#fff' }} helperText="关联的父公司数据库 ID（用于气泡图树状结构）" /></Grid>
 				</Grid>
 				
 				<Stack direction="row" spacing={2} sx={{ mt: 5 }}>

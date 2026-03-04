@@ -217,6 +217,7 @@ export default function AccountManagementPage() {
                                         登录邮箱
                                     </Typography>
                                     <TextField
+                                        id="account-email"
                                         fullWidth size="small" disabled
                                         value={formData.email}
                                         sx={{
@@ -235,6 +236,7 @@ export default function AccountManagementPage() {
                                         姓名 / 昵称
                                     </Typography>
                                     <TextField
+                                        id="account-name"
                                         fullWidth size="small"
                                         value={formData.name} onChange={handleChange('name')}
                                         error={!!errors.name} helperText={errors.name}
@@ -248,6 +250,7 @@ export default function AccountManagementPage() {
                                         电话号码
                                     </Typography>
                                     <TextField
+                                        id="account-phone"
                                         fullWidth size="small"
                                         value={formData.phone} onChange={handleChange('phone')}
                                         error={!!errors.phone} helperText={errors.phone}
@@ -262,7 +265,7 @@ export default function AccountManagementPage() {
                                     </Typography>
                                     <FormControl fullWidth size="small" sx={inputSx}>
                                         {/* @ts-expect-error: MUI Select React 19 compatibility */}
-                                        <Select value={formData.gender} onChange={handleChange('gender')} displayEmpty>
+                                        <Select id="account-gender" value={formData.gender} onChange={handleChange('gender')} displayEmpty>
                                             <MenuItem value="" disabled>请选择性别</MenuItem>
                                             <MenuItem value="男">男</MenuItem>
                                             <MenuItem value="女">女</MenuItem>
@@ -276,6 +279,7 @@ export default function AccountManagementPage() {
                                         出生年月
                                     </Typography>
                                     <TextField
+                                        id="account-dob"
                                         fullWidth size="small"
                                         type="date"
                                         value={formData.dob} onChange={handleChange('dob')}
@@ -291,6 +295,7 @@ export default function AccountManagementPage() {
                                         详细地址
                                     </Typography>
                                     <TextField
+                                        id="account-address"
                                         fullWidth size="small"
                                         value={formData.address} onChange={handleChange('address')}
                                         sx={inputSx}

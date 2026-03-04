@@ -133,7 +133,7 @@ export default function WelcomeModal() {
                     >
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1.5 }}>
                             <WcIcon sx={{ color: '#8d6e63', fontSize: 20 }} />
-                            <FormLabel sx={{ 
+                            <FormLabel id="welcome-gender-label" sx={{ 
                                 color: '#5d4037', fontWeight: 700, 
                                 '&.Mui-focused': { color: '#5d4037' } 
                             }}>
@@ -142,6 +142,8 @@ export default function WelcomeModal() {
                         </Box>
                         
                         <RadioGroup
+                            aria-labelledby="welcome-gender-label"
+                            name="welcome-gender-group"
                             row
                             value={gender}
                             onChange={(e) => setGender(e.target.value)}

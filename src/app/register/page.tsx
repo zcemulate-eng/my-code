@@ -1,9 +1,9 @@
 // src/app/register/page.tsx
 'use client';
 import React, { useState } from 'react';
-import { 
-    Container, Paper, TextField, Button, Typography, Box, Alert, Snackbar, 
-    Link as MuiLink, Stack, InputAdornment, Grid 
+import {
+    Container, Paper, TextField, Button, Typography, Box, Alert, Snackbar,
+    Link as MuiLink, Stack, InputAdornment, Grid
 } from '@mui/material';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -32,14 +32,14 @@ const sharedInputSx = {
 
 export default function RegisterPage() {
     const router = useRouter(); // 👉 新增：初始化路由
-    const [formData, setFormData] = useState({ 
-        username: '', email: '', phone: '', dob: '', password: '', confirmPassword: '', address: '' 
+    const [formData, setFormData] = useState({
+        username: '', email: '', phone: '', dob: '', password: '', confirmPassword: '', address: ''
     });
-    
-    const [errors, setErrors] = useState({ 
-        username: '', email: '', phone: '', password: '', confirmPassword: '' 
+
+    const [errors, setErrors] = useState({
+        username: '', email: '', phone: '', password: '', confirmPassword: ''
     });
-    
+
     const [serverError, setServerError] = useState('');
     const [success, setSuccess] = useState(false);
 
@@ -102,12 +102,12 @@ export default function RegisterPage() {
             if (result.success) {
                 setSuccess(true);
                 setFormData({ username: '', email: '', phone: '', dob: '', password: '', confirmPassword: '', address: '' });
-                
+
                 // 👉 新增核心逻辑：延迟 1.5 秒后自动跳转到登录页
                 setTimeout(() => {
                     router.push('/login');
                 }, 1500);
-                
+
             } else {
                 if (result.message === "该昵称已被人使用") {
                     setErrors(prev => ({ ...prev, username: result.message }));
@@ -124,8 +124,8 @@ export default function RegisterPage() {
             background: 'linear-gradient(135deg, #f1f8f5 0%, #dde4e0 100%)', p: 2
         }}>
             <Container maxWidth="sm">
-                <Paper elevation={0} sx={{ 
-                    p: { xs: 4, sm: 5 }, borderRadius: '32px', backgroundColor: 'rgba(255, 255, 255, 0.65)', 
+                <Paper elevation={0} sx={{
+                    p: { xs: 4, sm: 5 }, borderRadius: '32px', backgroundColor: 'rgba(255, 255, 255, 0.65)',
                     backdropFilter: 'blur(20px) saturate(150%)', border: '1px solid rgba(255, 255, 255, 0.5)',
                     boxShadow: '0 20px 40px rgba(85, 107, 95, 0.08)'
                 }}>
@@ -147,9 +147,10 @@ export default function RegisterPage() {
 
                     <Box component="form" onSubmit={handleRegister} noValidate>
                         <Stack spacing={2}>
-                            
-                            <TextField 
-                                fullWidth size="small" placeholder="用户名/昵称 *" 
+
+                            <TextField
+                                id="register-username"
+                                fullWidth size="small" placeholder="用户名/昵称 *"
                                 error={!!errors.username} helperText={errors.username}
                                 value={formData.username} onBlur={() => handleBlur('username')}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
@@ -160,9 +161,10 @@ export default function RegisterPage() {
                                 sx={sharedInputSx}
                             />
 
-                            <TextField 
-                                fullWidth size="small" placeholder="邮箱 *" 
-                                error={!!errors.email} helperText={errors.email} 
+                            <TextField
+                                id="register-email"
+                                fullWidth size="small" placeholder="邮箱 *"
+                                error={!!errors.email} helperText={errors.email}
                                 value={formData.email} onBlur={() => handleBlur('email')}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                     setFormData({ ...formData, email: e.target.value });
@@ -175,8 +177,9 @@ export default function RegisterPage() {
                             <Grid container spacing={2}>
                                 <Grid size={{ xs: 12, sm: 6 }}>
                                     <Typography variant="caption" sx={{ color: '#795548', display: 'block', mb: 0.5, ml: 1, fontWeight: 'bold' }}>电话号码 *</Typography>
-                                    <TextField 
-                                        fullWidth size="small" placeholder="输入电话号码" 
+                                    <TextField
+                                        id="register-phone"
+                                        fullWidth size="small" placeholder="输入电话号码"
                                         error={!!errors.phone} helperText={errors.phone}
                                         value={formData.phone} onBlur={() => handleBlur('phone')}
                                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
@@ -189,11 +192,12 @@ export default function RegisterPage() {
                                 </Grid>
                                 <Grid size={{ xs: 12, sm: 6 }}>
                                     <Typography variant="caption" sx={{ color: '#795548', display: 'block', mb: 0.5, ml: 1, fontWeight: 'bold' }}>年/月/日 (选填)</Typography>
-                                    <TextField 
-                                        fullWidth size="small" 
+                                    <TextField
+                                        id="register-dob"
+                                        fullWidth size="small"
                                         type="date" // 👉 新增：唤起浏览器原生日历
                                         InputLabelProps={{ shrink: true }} // 防止文字重叠
-                                        value={formData.dob} 
+                                        value={formData.dob}
                                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, dob: e.target.value })}
                                         // 注：使用原生日历时，移除了图标，保持样式清爽
                                         sx={sharedInputSx}
@@ -201,9 +205,10 @@ export default function RegisterPage() {
                                 </Grid>
                             </Grid>
 
-                            <TextField 
-                                fullWidth size="small" placeholder="填写密码 *" type="password" 
-                                error={!!errors.password} helperText={errors.password} 
+                            <TextField
+                                id="register-password"
+                                fullWidth size="small" placeholder="填写密码 *" type="password"
+                                error={!!errors.password} helperText={errors.password}
                                 value={formData.password} onBlur={() => handleBlur('password')}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                     setFormData({ ...formData, password: e.target.value });
@@ -213,9 +218,10 @@ export default function RegisterPage() {
                                 sx={sharedInputSx}
                             />
 
-                            <TextField 
-                                fullWidth size="small" placeholder="确定密码 *" type="password" 
-                                error={!!errors.confirmPassword} helperText={errors.confirmPassword} 
+                            <TextField
+                                id="register-confirm-password"
+                                fullWidth size="small" placeholder="确定密码 *" type="password"
+                                error={!!errors.confirmPassword} helperText={errors.confirmPassword}
                                 value={formData.confirmPassword} onBlur={() => handleBlur('confirmPassword')}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                     setFormData({ ...formData, confirmPassword: e.target.value });
@@ -225,18 +231,19 @@ export default function RegisterPage() {
                                 sx={sharedInputSx}
                             />
 
-                            <TextField 
-                                fullWidth size="small" placeholder="地址 (选填)" 
-                                value={formData.address} 
+                            <TextField
+                                id="register-address"
+                                fullWidth size="small" placeholder="地址 (选填)"
+                                value={formData.address}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, address: e.target.value })}
                                 slotProps={{ input: { startAdornment: <InputAdornment position="start"><HomeIcon sx={{ color: '#8d6e63' }} /></InputAdornment> } }}
                                 sx={sharedInputSx}
                             />
                         </Stack>
 
-                        <Button 
-                            fullWidth variant="contained" type="submit" 
-                            sx={{ 
+                        <Button
+                            fullWidth variant="contained" type="submit"
+                            sx={{
                                 mt: 3, mb: 2, py: 1.5, borderRadius: '50px', fontWeight: 'bold', fontSize: '1rem',
                                 background: 'linear-gradient(135deg, #8d6e63 0%, #6d4c41 100%)',
                                 boxShadow: '0 8px 20px rgba(109, 76, 65, 0.25)',
@@ -250,7 +257,7 @@ export default function RegisterPage() {
                     <Box sx={{ mt: 1, textAlign: 'center' }}>
                         <Typography variant="body2" sx={{ color: '#795548' }}>
                             已有账号？{' '}
-                            <MuiLink component={Link} href="/login" sx={{ 
+                            <MuiLink component={Link} href="/login" sx={{
                                 color: '#4e342e', fontWeight: '800', textDecoration: 'none', position: 'relative',
                                 '&::after': {
                                     content: '""', position: 'absolute', width: '100%', height: '2px',
