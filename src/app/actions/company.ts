@@ -1,8 +1,6 @@
 // src/app/actions/company.ts
 'use server';
 
-import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
 import { cookies } from 'next/headers'; // 👉 新增：引入 cookies
 
 export interface CompanyFilter {

@@ -12,7 +12,7 @@ import {
     Zoom,
     Card,
     CardContent,
-    Grid 
+    Grid
 } from '@mui/material';
 import BusinessIcon from '@mui/icons-material/Business';
 import CurrencyYuanIcon from '@mui/icons-material/CurrencyYuan';
@@ -186,10 +186,13 @@ export default function DashboardPage() {
     // --- Doughnut Config ---
     const doughnutData = useMemo(() => {
         const safeData = levelStats || [];
+        // 1. 算出总数
+        const total = safeData.reduce((sum, item) => sum + item.count, 0);
+
         return {
             labels: safeData.map(item => `Level ${item.level}`),
             datasets: [{
-                data: safeData.map(item => item.count),
+                data: safeData.map(item => Math.max(item.count, total * 0.01)),
                 backgroundColor: ['#2e7d32', '#8d6e63', '#d7ccc8', '#bcaaa4'],
                 borderColor: 'transparent',
                 borderWidth: 0,
@@ -216,10 +219,9 @@ export default function DashboardPage() {
                 borderWidth: 1,
                 callbacks: {
                     label: function (context: any) {
-                        const value = context.raw || 0;
-                        const total = context.chart._metasets[context.datasetIndex].total;
-                        const percentage = ((value / total) * 100).toFixed(1) + '%';
-                        return ` 占比: ${percentage}`;
+                        const safeData = levelStats || [];
+                        const realCount = safeData[context.dataIndex]?.count || 0;
+                        return ` 数量: ${realCount}`;
                     }
                 }
             }

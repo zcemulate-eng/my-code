@@ -33,11 +33,12 @@ function Row({ row, canManage, onEdit, onDelete }: { row: CompanyData, canManage
 	const empCount = row.employees || 0;
 	const efficiency = empCount > 0 ? row.annualRevenue / empCount : 0;
 
+	// 动态背景色逻辑 (热力图效果) - 已根据真实 0110 数据的百分位数重新调整
 	const getEfficiencyColor = (val: number) => {
-		if (val > 300000) return 'rgba(109, 140, 125, 0.4)';
-		if (val > 150000) return 'rgba(109, 140, 125, 0.15)';
-		if (val > 100000) return 'rgba(255, 253, 245, 0.8)';
-		return 'rgba(255, 171, 145, 0.3)';
+		if (val > 1000) return 'rgba(109, 140, 125, 0.4)'; // 深绿 (极高, 约前10%的头部企业)
+		if (val > 500) return 'rgba(109, 140, 125, 0.2)';  // 浅绿 (较高, 约排名前25%)
+		if (val > 250) return 'rgba(255, 253, 245, 0.5)';  // 米色 (正常水平, 中位数以上)
+		return 'rgba(255, 171, 145, 0.2)';                 // 淡红 (偏低, 处于后50%)
 	};
 
 	return (
@@ -243,7 +244,7 @@ export default function CompaniesPage() {
 					<Grid size={{ xs: 6 }}><TextField id="comp-employees" label="Employees" type="number" size="small" fullWidth value={formData.employees} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, employees: e.target.value })} sx={{ bgcolor: '#fff' }} /></Grid>
 					<Grid size={{ xs: 12 }}><TextField id="comp-parent" label="Parent ID (可选)" type="number" size="small" fullWidth value={formData.parentId} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, parentId: e.target.value })} sx={{ bgcolor: '#fff' }} helperText="关联的父公司数据库 ID（用于气泡图树状结构）" /></Grid>
 				</Grid>
-				
+
 				<Stack direction="row" spacing={2} sx={{ mt: 5 }}>
 					<Button fullWidth onClick={() => setDrawerOpen(false)} variant="outlined" sx={{ color: '#5d4037', borderColor: 'rgba(139, 115, 85, 0.3)' }}>Cancel</Button>
 					<Button fullWidth onClick={handleSave} variant="contained" sx={{ bgcolor: '#6d8c7d', '&:hover': { bgcolor: '#5a7568' } }}>Save Company</Button>

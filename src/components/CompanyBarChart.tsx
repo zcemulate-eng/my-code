@@ -181,16 +181,12 @@ export default function CompanyBarChart() {
     labels: chartData.labels,
     datasets: [
       {
-        label: 'Companies',
         data: chartData.data,
-        backgroundColor: earthColors.barBg,
-        borderColor: earthColors.barBorder,
-        borderWidth: 1,
+        backgroundColor: earthColors.primary,
         borderRadius: 4,
-        hoverBackgroundColor: earthColors.dark,
-        maxBarThickness: 50,
-        barPercentage: 0.6,
-        categoryPercentage: 0.8,
+        barThickness: 'flex' as const,
+        maxBarThickness: 40,
+        minBarLength: 5
       },
     ],
   };
