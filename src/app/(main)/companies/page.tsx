@@ -143,9 +143,52 @@ export default function CompaniesPage() {
 	};
 
 	const handleSave = async () => {
-		if (!formData.companyCode || !formData.name || !formData.level) {
-			setToast({ open: true, message: '请填写带 * 的必填项', type: 'error' }); return;
+		// 1. 必填项去空格校验
+		if (!formData.companyCode.trim() || !formData.name.trim() || !formData.level.toString().trim()) {
+			setToast({ open: true, message: '请填写带 * 的必填项，且不能全为空格', type: 'error' });
+			return;
 		}
+
+		const currentLevel = parseInt(formData.level);
+		const hasParentId = !!formData.parentId.toString().trim();
+
+		// 2. 基础数值边界校验
+		if (currentLevel < 1) {
+			setToast({ open: true, message: '公司层级 (Level) 必须大于等于 1', type: 'error' });
+			return;
+		}
+
+		if (formData.foundedYear) {
+			const year = parseInt(formData.foundedYear);
+			const currentYear = new Date().getFullYear();
+			if (year < 1800 || year > currentYear) {
+				setToast({ open: true, message: `成立年份必须在 1800 ~ ${currentYear} 之间`, type: 'error' });
+				return;
+			}
+		}
+
+		if (formData.annualRevenue && parseInt(formData.annualRevenue) < 0) {
+			setToast({ open: true, message: '年营收不能为负数', type: 'error' });
+			return;
+		}
+
+		if (formData.employees && parseInt(formData.employees) < 0) {
+			setToast({ open: true, message: '员工数不能为负数', type: 'error' });
+			return;
+		}
+
+		// 3. 🌟 核心树状结构逻辑联动校验 🌟
+		if (!hasParentId && currentLevel !== 1) {
+			setToast({ open: true, message: '缺少父节点：只有 Level 1 的公司可以不填写 Parent ID', type: 'error' });
+			return;
+		}
+
+		if (hasParentId && currentLevel === 1) {
+			setToast({ open: true, message: '层级冲突：Level 1 为顶级公司，不应该填写 Parent ID', type: 'error' });
+			return;
+		}
+
+		// --- 校验通过，开始请求后端 ---
 		let res;
 		if (editingId) {
 			res = await updateCompany(editingId, formData);
@@ -155,8 +198,11 @@ export default function CompaniesPage() {
 
 		if (res.success) {
 			setToast({ open: true, message: '操作成功', type: 'success' });
-			setDrawerOpen(false); fetchData(); getCompanyLevels().then(setAllLevels);
+			setDrawerOpen(false);
+			fetchData();
+			getCompanyLevels().then(setAllLevels);
 		} else {
+			// 展示后端返回的具体错误（如 Code 重复、父节点层级不匹配等）
 			setToast({ open: true, message: res.message || '操作失败', type: 'error' });
 		}
 	};

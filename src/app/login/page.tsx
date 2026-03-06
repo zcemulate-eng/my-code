@@ -1,6 +1,6 @@
 // src/app/login/page.tsx
 'use client';
-import React, { useState } from 'react'; // 修复 1：引入 React
+import React, { useState } from 'react';
 import {
 	TextField, Button, Typography, Box, Alert, Snackbar,
 	Link as MuiLink, InputAdornment, Paper, Stack
@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import EmailIcon from '@mui/icons-material/Email';
 import LockIcon from '@mui/icons-material/Lock';
-import { loginUser } from '@/app/actions/auth'; // 引入真实的登录 Server Action
+import { loginUser } from '@/app/actions/auth';
 
 export default function LoginPage() {
 	const router = useRouter();
@@ -40,7 +40,6 @@ export default function LoginPage() {
 		e.preventDefault();
 		setServerError('');
 
-		// 调用真实的后端验证
 		const result = await loginUser(formData);
 
 		if (result.success) {
@@ -71,7 +70,6 @@ export default function LoginPage() {
 				</Box>
 
 				{serverError && (
-					/* 修复 2：使用 @ts-expect-error 绕过 MUI Alert 在 React 19 中的子组件类型报错 */
 					// @ts-expect-error: Known type issue with MUI Alert and React 19
 					<Alert severity="error" variant="filled" sx={{ mb: 3, borderRadius: '12px' }}>
 						{serverError}
@@ -84,12 +82,25 @@ export default function LoginPage() {
 							id="login-email"
 							fullWidth placeholder="邮箱" error={!!errors.email} helperText={errors.email}
 							value={formData.email} onBlur={() => handleBlur('email')}
-							/* 修复 3：明确 e 的类型 */
 							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, email: e.target.value })}
 							slotProps={{ input: { startAdornment: <InputAdornment position="start"><EmailIcon sx={{ color: '#8d6e63' }} /></InputAdornment> } }}
 							sx={{
-								'& .MuiOutlinedInput-root': { borderRadius: '50px', backgroundColor: 'rgba(255, 255, 255, 0.5)', '& fieldset': { borderColor: 'rgba(141, 110, 99, 0.15)' }, '&:hover fieldset': { borderColor: '#6d8c7d' }, '&.Mui-focused fieldset': { borderColor: '#6d8c7d', borderWidth: '2px' } },
-								'& .MuiInputBase-input': { color: '#5d4037', fontWeight: 500 }
+								'& .MuiOutlinedInput-root': {
+									borderRadius: '50px',
+									backgroundColor: 'rgba(255, 255, 255, 0.5)',
+									'& fieldset': { borderColor: 'rgba(141, 110, 99, 0.15)' },
+									'&:hover fieldset': { borderColor: '#6d8c7d' },
+									'&.Mui-focused fieldset': { borderColor: '#6d8c7d', borderWidth: '2px' }
+								},
+								'& .MuiInputBase-input': {
+									color: '#5d4037',
+									fontWeight: 500,
+									// ✨ 修复自动填充背景色的关键代码
+									'&:-webkit-autofill': {
+										transition: 'background-color 5000s ease-in-out 0s', // 延迟背景色变化，保留毛玻璃透明度
+										WebkitTextFillColor: '#5d4037 !important', // 保持字体颜色一致
+									}
+								}
 							}}
 						/>
 
@@ -97,12 +108,25 @@ export default function LoginPage() {
 							id="login-password"
 							fullWidth placeholder="密码" type="password" error={!!errors.password} helperText={errors.password}
 							value={formData.password} onBlur={() => handleBlur('password')}
-							/* 修复 3：明确 e 的类型 */
 							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, password: e.target.value })}
 							slotProps={{ input: { startAdornment: <InputAdornment position="start"><LockIcon sx={{ color: '#8d6e63' }} /></InputAdornment> } }}
 							sx={{
-								'& .MuiOutlinedInput-root': { borderRadius: '50px', backgroundColor: 'rgba(255, 255, 255, 0.5)', '& fieldset': { borderColor: 'rgba(141, 110, 99, 0.15)' }, '&:hover fieldset': { borderColor: '#6d8c7d' }, '&.Mui-focused fieldset': { borderColor: '#6d8c7d', borderWidth: '2px' } },
-								'& .MuiInputBase-input': { color: '#5d4037', fontWeight: 500 }
+								'& .MuiOutlinedInput-root': {
+									borderRadius: '50px',
+									backgroundColor: 'rgba(255, 255, 255, 0.5)',
+									'& fieldset': { borderColor: 'rgba(141, 110, 99, 0.15)' },
+									'&:hover fieldset': { borderColor: '#6d8c7d' },
+									'&.Mui-focused fieldset': { borderColor: '#6d8c7d', borderWidth: '2px' }
+								},
+								'& .MuiInputBase-input': {
+									color: '#5d4037',
+									fontWeight: 500,
+									// ✨ 修复自动填充背景色的关键代码
+									'&:-webkit-autofill': {
+										transition: 'background-color 5000s ease-in-out 0s', // 延迟背景色变化，保留毛玻璃透明度
+										WebkitTextFillColor: '#5d4037 !important', // 保持字体颜色一致
+									}
+								}
 							}}
 						/>
 					</Stack>
